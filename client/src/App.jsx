@@ -10,6 +10,9 @@ import Yearbook      from './pages/public/Yearbook';
 import Gallery       from './pages/public/Gallery';
 import Achievements  from './pages/public/Achievements';
 import PublicNotices from './pages/public/PublicNotices';
+import GalleryDetailPage from './pages/public/GalleryDetailPage';
+import EventDetailPage   from './pages/public/EventDetailPage';
+import AchievementDetailPage from './pages/public/AchievementDetailPage';
 
 // Auth
 import Login from './pages/auth/Login';
@@ -18,8 +21,10 @@ import Setup from './pages/auth/Setup';
 // Dashboard pages
 import Dashboard          from './pages/dashboard/Dashboard';
 import CadetRegistry      from './pages/dashboard/CadetRegistry';
+import CadetDetail        from './pages/CadetDetail';
 import AttendancePage     from './pages/dashboard/AttendancePage';
 import NoticesPage        from './pages/dashboard/NoticesPage';
+import NoticeDetail       from './pages/dashboard/NoticeDetail';
 import HonorRoll          from './pages/dashboard/HonorRoll';
 import GalleryManage      from './pages/dashboard/GalleryManage';
 import AchievementsManage from './pages/dashboard/AchievementsManage';
@@ -30,8 +35,14 @@ import SettingsPage       from './pages/dashboard/SettingsPage';
 import AuditLog           from './pages/dashboard/AuditLog';
 
 // Portal pages
-import PortalHome from './pages/portal/PortalHome';
-import { MyAttendance, MyNotices, MyEvents, MyAchievements, MyCertificates, MyProfile } from './pages/portal/stubs';
+import PortalHome       from './pages/portal/PortalHome';
+import MyAttendancePage  from './pages/portal/MyAttendancePage';
+import MyNoticesPage     from './pages/portal/MyNoticesPage';
+import MyEventsPage      from './pages/portal/MyEventsPage';
+import MyAchievementsPage from './pages/portal/MyAchievementsPage';
+import MyProfilePage     from './pages/portal/MyProfilePage';
+// Remaining stubs that still need real implementations
+import { MyCertificates } from './pages/portal/stubs';
 
 // God Mode
 import YTGodMode from './pages/yt/YTGodMode';
@@ -97,10 +108,10 @@ const AuthRoute = ({ children }) => {
 
 // ── Token verifier on app mount ─────────────────────────
 const AuthVerifier = () => {
-  const { token, setAuth, logout, hydrated } = useAuthStore();
+  const { token, setAuth, logout, isHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!hydrated) return; // wait for rehydration first
+    if (!isHydrated) return; // wait for rehydration first
     if (!token) return;
 
     const verify = async () => {
@@ -151,8 +162,12 @@ const AppContent = () => {
           <Route element={<PublicLayout />}>
             <Route path="/"             element={<Landing />} />
             <Route path="/yearbook"     element={<Yearbook />} />
+            <Route path="/cadets/:id"   element={<CadetDetail />} />
             <Route path="/gallery"      element={<Gallery />} />
+            <Route path="/gallery/:id"  element={<GalleryDetailPage />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/achievements/:id" element={<AchievementDetailPage />} />
+            <Route path="/events/:id"   element={<EventDetailPage />} />
             <Route path="/notices"      element={<PublicNotices />} />
           </Route>
 
@@ -168,8 +183,10 @@ const AppContent = () => {
           }>
             <Route path="/dashboard"              element={<Dashboard />} />
             <Route path="/dashboard/cadets"       element={<CadetRegistry />} />
+            <Route path="/dashboard/cadets/:id"   element={<CadetDetail />} />
             <Route path="/dashboard/attendance"   element={<AttendancePage />} />
             <Route path="/dashboard/notices"      element={<NoticesPage />} />
+            <Route path="/dashboard/notices/:id"  element={<NoticeDetail />} />
             <Route path="/dashboard/honor-roll"   element={<HonorRoll />} />
             <Route path="/dashboard/gallery"      element={<GalleryManage />} />
             <Route path="/dashboard/achievements" element={<AchievementsManage />} />
@@ -193,12 +210,12 @@ const AppContent = () => {
             </ProtectedRoute>
           }>
             <Route path="/portal"               element={<PortalHome />} />
-            <Route path="/portal/attendance"    element={<MyAttendance />} />
-            <Route path="/portal/notices"       element={<MyNotices />} />
-            <Route path="/portal/events"        element={<MyEvents />} />
-            <Route path="/portal/achievements"  element={<MyAchievements />} />
+            <Route path="/portal/attendance"    element={<MyAttendancePage />} />
+            <Route path="/portal/notices"       element={<MyNoticesPage />} />
+            <Route path="/portal/events"        element={<MyEventsPage />} />
+            <Route path="/portal/achievements"  element={<MyAchievementsPage />} />
             <Route path="/portal/certificates"  element={<MyCertificates />} />
-            <Route path="/portal/profile"       element={<MyProfile />} />
+            <Route path="/portal/profile"       element={<MyProfilePage />} />
           </Route>
 
           {/* ── GOD MODE ── hidden, not linked from anywhere ── */}

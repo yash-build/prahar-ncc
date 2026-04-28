@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import AnimatedPage from '../../components/layout/AnimatedPage';
 
@@ -13,6 +16,20 @@ const SettingsPage = () => {
     { label: 'Training Year',value: '2024-25' },
     { label: 'Batch',        value: '2024-25' },
   ];
+
+  const handleReset = async () => {
+    const confirm = prompt('Type RESET to confirm:');
+    if (confirm !== 'RESET') {
+      if (confirm) toast.error('Confirmation failed');
+      return;
+    }
+    try {
+      const { data } = await api.post('/batch/reset');
+      if (data.success) toast.success('System reset successfully. All data wiped.');
+    } catch (e) {
+      toast.error('Failed to reset system');
+    }
+  };
 
   return (
     <AnimatedPage className="page-shell max-w-2xl">
@@ -35,7 +52,7 @@ const SettingsPage = () => {
           <div className="flex-1 bg-red-50 border border-red-200 rounded-sm p-4">
             <h4 className="font-heading font-bold text-red-800 mb-1">Reset System</h4>
             <p className="text-red-600 text-xs font-mono mb-3">Deletes all cadets, notices, and attendance records. Cannot be undone.</p>
-            <button className="btn-danger text-xs px-4 py-2">Reset All Data</button>
+            <button onClick={handleReset} className="btn-danger text-xs px-4 py-2">Reset All Data</button>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import * as XLSX from 'xlsx';
 import api from '../../services/api';
 import AnimatedPage from '../../components/layout/AnimatedPage';
 
@@ -9,6 +10,25 @@ const COLORS = ['#2e3b2c','#c2b280','#d4af37','#4a5a48','#a89060'];
 const ReportsPage = () => {
   const [cadets, setCadets] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleExport = () => {
+    const rows = cadets.map(c => ({
+      'Service No': c.serviceNumber,
+      'Name': c.name,
+      'Rank': c.rank,
+      'Wing': c.wing,
+      'Year': c.yearOfStudy,
+      'Batch': c.batchYear,
+      'Gender': c.gender,
+      'Phone': c.phone,
+      'Email': c.email,
+      'Status': c.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cadet Report');
+    XLSX.writeFile(wb, `prahar-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   useEffect(() => {
     api.get('/cadets', { params: { limit: 200 } })
@@ -36,7 +56,14 @@ const ReportsPage = () => {
 
   return (
     <AnimatedPage className="page-shell">
-      <div><div className="font-mono text-2xs text-olive-muted tracking-military mb-1">ANALYTICS</div><h1 className="section-title">Reports & Analytics</h1></div>
+      <div className="flex items-center justify-between">
+        <div><div className="font-mono text-2xs text-olive-muted tracking-military mb-1">ANALYTICS</div><h1 className="section-title">Reports & Analytics</h1></div>
+        {!loading && cadets.length > 0 && (
+          <button onClick={handleExport} className="btn-primary">
+            ↓ Export XLSX
+          </button>
+        )}
+      </div>
 
       {loading ? <div className="text-center py-20 text-olive-muted font-mono text-sm">Generating report...</div> : (
         <>

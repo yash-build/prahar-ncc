@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import * as XLSX from 'xlsx';
 import AnimatedPage from '../../components/layout/AnimatedPage';
+import AddCadetModal from '../../components/cadet/AddCadetModal';
+import EditCadetForm from '../../components/cadet/EditCadetForm';
 
 const WINGS = ['ALL', 'SD', 'SW'];
 
@@ -19,8 +22,11 @@ const CadetRegistry = () => {
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [filterWing, setFilter]   = useState('ALL');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCadet, setEditingCadet] = useState(null);
   const { user }                  = useAuthStore();
   const isANO                     = user?.role === 'ANO';
+  const navigate                  = useNavigate();
 
   const fetchCadets = async () => {
     try {
@@ -79,7 +85,7 @@ const CadetRegistry = () => {
           <p className="font-mono text-xs text-olive-muted mt-1">{cadets.length} records loaded</p>
         </div>
         {isANO && (
-          <button className="btn-primary">
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
             + Enroll New Cadet
           </button>
         )}
@@ -152,6 +158,8 @@ const CadetRegistry = () => {
                 cadets.map((cadet, i) => (
                   <motion.tr
                     key={cadet._id}
+                    onClick={() => navigate(`/dashboard/cadets/${cadet._id}`)}
+                    className="cursor-pointer hover:bg-olive-dark/5"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.03 }}
@@ -172,9 +180,12 @@ const CadetRegistry = () => {
                     {isANO && (
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-3">
-                          <button className="font-mono text-2xs text-khaki-dark hover:text-olive-dark transition-colors uppercase tracking-wider">Edit</button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setEditingCadet(cadet); }}
+                            className="font-mono text-2xs text-khaki-dark hover:text-olive-dark transition-colors uppercase tracking-wider"
+                          >Edit</button>
                           <button
-                            onClick={() => handleDelete(cadet._id, cadet.name)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(cadet._id, cadet.name); }}
                             className="font-mono text-2xs text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
                           >Delete</button>
                         </div>
@@ -187,6 +198,25 @@ const CadetRegistry = () => {
           </table>
         </div>
       </div>
+      {showAddModal && (
+        <AddCadetModal 
+          onClose={() => setShowAddModal(false)} 
+          onSuccess={(newCadet) => {
+            setCadets([...cadets, newCadet]);
+            setShowAddModal(false);
+          }} 
+        />
+      )}
+      {editingCadet && (
+        <EditCadetForm
+          cadet={editingCadet}
+          onClose={() => setEditingCadet(null)}
+          onSuccess={(updatedCadet) => {
+            setCadets(cadets.map(c => c._id === updatedCadet._id ? updatedCadet : c));
+            setEditingCadet(null);
+          }}
+        />
+      )}
     </AnimatedPage>
   );
 };

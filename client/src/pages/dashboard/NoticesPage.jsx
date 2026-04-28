@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -15,6 +16,7 @@ const NoticesPage = () => {
   const [form, setForm] = useState({ title: '', body: '', priority: 'INFORMATION', targetAudience: 'ALL', expiresAt: '' });
   const { user } = useAuthStore();
   const isANO = user?.role === 'ANO';
+  const navigate = useNavigate();
 
   const fetchNotices = async () => {
     try {
@@ -87,7 +89,8 @@ const NoticesPage = () => {
           notices.length === 0 ? <div className="card"><div className="empty-state"><div className="empty-state-icon">📢</div><div className="empty-state-title">No notices published</div></div></div> :
           notices.map((n, i) => (
             <motion.div key={n._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className="card p-5 flex flex-col sm:flex-row sm:items-start gap-4">
+              onClick={() => navigate(`/dashboard/notices/${n._id}`)}
+              className="card p-5 flex flex-col sm:flex-row sm:items-start gap-4 cursor-pointer hover:border-khaki/50 transition-colors">
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className={PRIORITY_COLORS[n.priority]}>{n.priority}</span>

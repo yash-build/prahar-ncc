@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -6,25 +6,56 @@ import AnimatedPage from '../../components/layout/AnimatedPage';
 
 const SESSION_TYPES = ['PARADE', 'PT', 'CAMP', 'NCC_DAY', 'CLASSIFIED'];
 
-const DEMO_CADETS = [
-  { id: '1', reg: 'CG21SDA001', name: 'Yash Tiwari',  rank: 'SUO', status: 'PRESENT' },
-  { id: '2', reg: 'CG21SDA002', name: 'Rahul Sharma', rank: 'JUO', status: 'PRESENT' },
-  { id: '3', reg: 'CG21SDA003', name: 'Aman Verma',   rank: 'SGT', status: 'ABSENT'  },
-  { id: '4', reg: 'CG21SDA004', name: 'Vikash Singh', rank: 'CPL', status: 'LEAVE'   },
-  { id: '5', reg: 'CG21SDA005', name: 'Riya Gupta',   rank: 'CDT', status: 'PRESENT' },
-];
-
 const STATUS_OPTS = [
-  { key: 'PRESENT', label: 'P', color: 'bg-emerald-500 border-emerald-500 text-white' },
-  { key: 'ABSENT',  label: 'A', color: 'bg-red-500 border-red-500 text-white' },
-  { key: 'LEAVE',   label: 'L', color: 'bg-amber-500 border-amber-500 text-white' },
+  { key: 'P', label: 'P', color: 'bg-emerald-500 border-emerald-500 text-white' },
+  { key: 'A', label: 'A', color: 'bg-red-500 border-red-500 text-white' },
+  { key: 'L', label: 'L', color: 'bg-amber-500 border-amber-500 text-white' },
 ];
 
 const AttendancePage = () => {
   const [sessionType, setType]      = useState('PARADE');
   const [date, setDate]             = useState(new Date().toISOString().split('T')[0]);
-  const [cadets, setCadets]         = useState(DEMO_CADETS);
+  const [cadets, setCadets]         = useState([]);
+  const [sessionId, setSessionId]   = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading]       = useState(true);
+
+  // Fetch all active cadets
+  useEffect(() => {
+    api.get('/cadets').then(r => {
+      if (r.data.success) {
+        setCadets(r.data.cadets.map(c => ({
+          id: c._id, reg: c.serviceNumber, name: c.name, rank: c.rank, status: 'P'
+        })));
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  // Fetch session based on date and type
+  useEffect(() => {
+    if (loading) return;
+    const fetchSessionData = async () => {
+      try {
+        const { data } = await api.get(`/attendance/sessions?date=${date}&sessionType=${sessionType}`);
+        if (data.success && data.sessions.length > 0) {
+          const session = data.sessions[0];
+          setSessionId(session._id);
+          const entriesRes = await api.get(`/attendance/sessions/${session._id}/entries`);
+          if (entriesRes.data.success) {
+            const entryMap = {};
+            entriesRes.data.entries.forEach(e => entryMap[e.cadetId._id || e.cadetId] = e.status);
+            setCadets(cs => cs.map(c => ({ ...c, status: entryMap[c.id] || 'P' })));
+          }
+        } else {
+          setSessionId(null);
+          setCadets(cs => cs.map(c => ({ ...c, status: 'P' })));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchSessionData();
+  }, [date, sessionType, loading]);
 
   const toggle = (id, status) => {
     setCadets(cs => cs.map(c => c.id === id ? { ...c, status } : c));
@@ -37,14 +68,27 @@ const AttendancePage = () => {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1000)); // simulate API
-    toast.success('Attendance session submitted and logged.');
-    setSubmitting(false);
+    try {
+      let currentSessionId = sessionId;
+      if (!currentSessionId) {
+        const { data } = await api.post('/attendance/sessions', { date, sessionType });
+        if (data.success) currentSessionId = data.session._id;
+        setSessionId(currentSessionId);
+      }
+      
+      const entries = cadets.map(c => ({ cadetId: c.id, status: c.status }));
+      await api.post(`/attendance/sessions/${currentSessionId}/entries`, { entries });
+      toast.success('Attendance session submitted and logged.');
+    } catch (err) {
+      toast.error('Failed to submit attendance');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const present = cadets.filter(c => c.status === 'PRESENT').length;
-  const absent  = cadets.filter(c => c.status === 'ABSENT').length;
-  const leave   = cadets.filter(c => c.status === 'LEAVE').length;
+  const present = cadets.filter(c => c.status === 'P').length;
+  const absent  = cadets.filter(c => c.status === 'A').length;
+  const leave   = cadets.filter(c => c.status === 'L').length;
 
   return (
     <AnimatedPage className="page-shell">
@@ -82,8 +126,8 @@ const AttendancePage = () => {
           </select>
         </div>
         <div className="flex gap-2 ml-auto">
-          <button onClick={() => markAll('PRESENT')} className="btn-ghost text-xs">Mark All P</button>
-          <button onClick={() => markAll('ABSENT')}  className="btn-ghost text-xs">Mark All A</button>
+          <button onClick={() => markAll('P')} className="btn-ghost text-xs">Mark All P</button>
+          <button onClick={() => markAll('A')}  className="btn-ghost text-xs">Mark All A</button>
         </div>
       </div>
 

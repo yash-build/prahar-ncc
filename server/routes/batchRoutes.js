@@ -7,5 +7,6 @@ router.use(protect);
 
 router.post('/promote', requireRole('ANO'), ctrl.promoteBatch);
 router.get('/history', requireRole('ANO'), ctrl.getBatchHistory);
+router.post('/reset', requireRole('ANO'), ctrl.resetSystem);
 
 module.exports = router;

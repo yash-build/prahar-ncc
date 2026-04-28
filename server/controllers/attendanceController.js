@@ -13,14 +13,17 @@ const normalizeDate = (dateInput) => {
 // GET /api/attendance/sessions
 const getSessions = async (req, res, next) => {
   try {
-    const { month, year, sessionType } = req.query;
+    const { month, year, sessionType, date } = req.query;
     const query = { unitId: req.user.unit };
 
     if (month && year) {
       const start = new Date(Date.UTC(year, month - 1, 1));
       const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
       query.date = { $gte: start, $lte: end };
+    } else if (date) {
+      query.date = normalizeDate(date);
     }
+    
     if (sessionType) query.sessionType = sessionType;
 
     const sessions = await AttendanceSession.find(query)

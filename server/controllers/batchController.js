@@ -1,6 +1,10 @@
 const Cadet = require('../models/Cadet');
 const BatchPromotion = require('../models/BatchPromotion');
 const AuditLog = require('../models/AuditLog');
+const AttendanceSession = require('../models/AttendanceSession');
+const AttendanceEntry = require('../models/AttendanceEntry');
+const Achievement = require('../models/Achievement');
+const Notice = require('../models/Notice');
 
 // POST /api/batch/promote
 const promoteBatch = async (req, res, next) => {
@@ -50,4 +54,26 @@ const getBatchHistory = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { promoteBatch, getBatchHistory };
+// POST /api/batch/reset
+const resetSystem = async (req, res, next) => {
+  try {
+    const unitId = req.user.unit;
+    await Cadet.deleteMany({ unitId });
+    await AttendanceSession.deleteMany({ unitId });
+    await AttendanceEntry.deleteMany({});
+    await Achievement.deleteMany({ unitId });
+    await Notice.deleteMany({ unitId });
+
+    await AuditLog.create({
+      action: 'SYSTEM_RESET',
+      entityType: 'System',
+      entityId: req.user._id,
+      performedBy: req.user._id,
+      details: { message: 'All cadets, attendance, achievements, and notices wiped.' }
+    });
+
+    res.json({ success: true, message: 'System reset completely.' });
+  } catch (err) { next(err); }
+};
+
+module.exports = { promoteBatch, getBatchHistory, resetSystem };

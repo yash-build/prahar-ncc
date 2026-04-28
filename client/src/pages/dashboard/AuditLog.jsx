@@ -9,7 +9,7 @@ const AuditLog = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/yt/logs', { headers: { 'x-yt-secret': import.meta.env.VITE_YT_SECRET || 'PRAHAR_YT_2024_HIDDEN' } })
+    api.get('/audit')
       .then(r => { if (r.data.success) setLogs(r.data.logs); })
       .catch(() => toast.error('Could not load audit logs'))
       .finally(() => setLoading(false));

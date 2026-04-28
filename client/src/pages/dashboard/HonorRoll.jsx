@@ -2,21 +2,45 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../services/api';
 import AnimatedPage from '../../components/layout/AnimatedPage';
+import useAuthStore from '../../store/authStore';
+import toast from 'react-hot-toast';
 
 const HonorRoll = () => {
   const [cadets, setCadets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
+  const isANO = user?.role === 'ANO';
+
+  const fetchCadets = async () => {
+    try {
+      const { data } = await api.get('/cadets', { params: { status: 'ACTIVE', limit: 100 } });
+      if (data.success) setCadets(data.cadets.filter(c => c.isHonorRoll || c.isSUOPosition || c.isJUOPosition));
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
   useEffect(() => {
-    const fetchCadets = async () => {
-      try {
-        const { data } = await api.get('/cadets', { params: { status: 'ACTIVE', limit: 100 } });
-        if (data.success) setCadets(data.cadets.filter(c => c.isHonorRoll || c.isSUOPosition || c.isJUOPosition));
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    };
     fetchCadets();
   }, []);
+
+  const handleRemove = async (cadet) => {
+    try {
+      await api.put(`/cadets/${cadet._id}`, { isHonorRoll: false });
+      toast.success('Removed from Honor Roll');
+      fetchCadets();
+    } catch(e) { toast.error('Failed to remove'); }
+  };
+
+  const handleEditNote = async (cadet) => {
+    const note = prompt('Enter Honor Roll Note / Yearbook Message:', cadet.yearbookMessage || '');
+    if (note !== null) {
+      try {
+        await api.put(`/cadets/${cadet._id}`, { yearbookMessage: note });
+        toast.success('Note updated');
+        fetchCadets();
+      } catch(e) { toast.error('Failed to update note'); }
+    }
+  };
 
   const getRank = (c) => {
     if (c.isSUOPosition) return { label: 'SUO', color: '#d4af37' };
@@ -26,10 +50,27 @@ const HonorRoll = () => {
 
   return (
     <AnimatedPage className="page-shell">
-      <div>
-        <div className="font-mono text-2xs text-olive-muted tracking-military mb-1">RECOGNITION</div>
-        <h1 className="section-title">Honor Roll</h1>
-        <p className="font-mono text-xs text-olive-muted mt-1">Distinguished cadets and command hierarchy.</p>
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <div className="font-mono text-2xs text-olive-muted tracking-military mb-1">RECOGNITION</div>
+          <h1 className="section-title">Honor Roll</h1>
+          <p className="font-mono text-xs text-olive-muted mt-1">Distinguished cadets and command hierarchy.</p>
+        </div>
+        {isANO && (
+          <button onClick={() => {
+            const sn = prompt('Enter Cadet Service Number to add to Honor Roll:');
+            if (sn) {
+              api.get('/cadets').then(r => {
+                const c = r.data.cadets.find(x => x.serviceNumber === sn);
+                if(c) {
+                  api.put(`/cadets/${c._id}`, { isHonorRoll: true }).then(() => { toast.success('Added'); fetchCadets(); });
+                } else toast.error('Cadet not found');
+              });
+            }
+          }} className="btn-primary">
+            + Add to Honor Roll
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -54,7 +95,13 @@ const HonorRoll = () => {
                 </div>
                 <div className="p-4">
                   <h3 className="font-heading font-bold text-olive-dark text-base truncate">{c.name}</h3>
-                  <div className="font-mono text-2xs text-olive-muted mt-1">{c.wing} Wing · Yr {c.yearOfStudy}</div>
+                  <div className="font-mono text-2xs text-olive-muted mt-1 mb-2">{c.wing} Wing · Yr {c.yearOfStudy}</div>
+                  {isANO && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-stone-200">
+                      <button onClick={(e) => { e.stopPropagation(); handleEditNote(c); }} className="text-2xs text-khaki-dark font-mono uppercase hover:text-olive-dark">Edit Note</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleRemove(c); }} className="text-2xs text-red-500 font-mono uppercase hover:text-red-700">Remove</button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

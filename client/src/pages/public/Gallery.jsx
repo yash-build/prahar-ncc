@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const Gallery = () => {
+  const navigate = useNavigate();
   const ITEMS = [
     { title: 'Republic Day Camp 2024',  category: 'CAMP',        year: '2024' },
     { title: 'Independence Day Parade', category: 'PARADE',      year: '2024' },
@@ -25,6 +27,7 @@ const Gallery = () => {
         {ITEMS.map((item, i) => (
           <motion.div
             key={i}
+            onClick={() => navigate(`/gallery/${i}`)}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.08 }}

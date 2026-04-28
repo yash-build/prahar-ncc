@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import useAuthStore from '../../store/authStore';
+import api from '../../services/api';
 import DemoSeedButton from '../../components/ui/DemoSeedButton';
 import AnimatedPage from '../../components/layout/AnimatedPage';
 
@@ -36,6 +37,40 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const Dashboard = () => {
   const { user } = useAuthStore();
+  const [stats, setStats] = useState({ totalCadets: 0, totalSessions: 0, totalNotices: 0 });
+  const [wingData, setWingData] = useState([{ name: 'SD Wing', value: 0 }, { name: 'SW Wing', value: 0 }]);
+  const [recentLogs, setRecentLogs] = useState([]);
+
+  useEffect(() => {
+    // Fetch live counts
+    Promise.all([
+      api.get('/cadets', { params: { limit: 200 } }),
+      api.get('/notices/public'),
+    ]).then(([cadetRes, noticeRes]) => {
+      const cadets = cadetRes.data?.cadets || [];
+      const notices = noticeRes.data?.notices || [];
+      setStats({
+        totalCadets: cadets.length,
+        totalSessions: 0,
+        totalNotices: notices.length,
+      });
+      setWingData([
+        { name: 'SD Wing', value: cadets.filter(c => c.wing === 'SD').length },
+        { name: 'SW Wing', value: cadets.filter(c => c.wing === 'SW').length },
+      ]);
+    }).catch(() => {});
+    // Fetch recent audit logs
+    api.get('/audit').then(r => {
+      if (r.data.success) setRecentLogs(r.data.logs.slice(0, 5));
+    }).catch(() => {});
+  }, []);
+
+  const KPI_CARDS = [
+    { label: 'Enrolled Cadets', value: stats.totalCadets, delta: 'Active in registry', color: 'border-t-blue-500',   icon: '👤' },
+    { label: 'SD Wing',         value: wingData[0].value,  delta: 'Senior Division',   color: 'border-t-emerald-500', icon: '🪖' },
+    { label: 'SW Wing',         value: wingData[1].value,  delta: 'Senior Wing',       color: 'border-t-amber-500',  icon: '🎖️' },
+    { label: 'Active Notices',  value: stats.totalNotices, delta: 'Published',          color: 'border-t-purple-500',  icon: '📢' },
+  ];
 
   return (
     <AnimatedPage className="page-shell">
@@ -145,19 +180,16 @@ const Dashboard = () => {
       >
         <h3 className="font-heading font-semibold text-olive-dark uppercase tracking-wide mb-5">Recent Activity</h3>
         <div className="space-y-3">
-          {[
-            { action: 'Attendance session submitted',   who: 'SUO Yash Tiwari',  time: '2 min ago',  type: 'info' },
-            { action: 'New cadet added to registry',    who: 'ANO Lt. Sharma',   time: '1 hr ago',   type: 'success' },
-            { action: 'Notice published: B-Cert Exam',  who: 'ANO Lt. Sharma',   time: '3 hrs ago',  type: 'warn' },
-            { action: 'Gallery updated with camp photos',who: 'SUO Yash Tiwari', time: 'Yesterday',  type: 'info' },
-          ].map((log, i) => (
+          {recentLogs.length === 0 ? (
+            <div className="text-center py-6 font-mono text-xs text-olive-muted">No activity logged yet. Actions by staff will appear here.</div>
+          ) : recentLogs.map((log, i) => (
             <div key={i} className="flex items-center gap-4 py-2.5 border-b border-stone-100 last:border-0">
-              <span className={`status-dot ${log.type === 'success' ? 'status-dot-active' : log.type === 'warn' ? 'status-dot-warn' : 'status-dot-inactive'} shrink-0`} />
+              <span className="status-dot status-dot-active shrink-0" />
               <div className="flex-1 min-w-0">
-                <span className="font-sans text-sm text-olive-dark">{log.action}</span>
-                <span className="font-mono text-2xs text-olive-muted ml-2">by {log.who}</span>
+                <span className="font-sans text-sm text-olive-dark">{log.action.replace(/_/g, ' ')}</span>
+                <span className="font-mono text-2xs text-olive-muted ml-2">by {log.performedBy?.name || 'System'}</span>
               </div>
-              <span className="font-mono text-2xs text-olive-muted/60 shrink-0">{log.time}</span>
+              <span className="font-mono text-2xs text-olive-muted/60 shrink-0">{new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           ))}
         </div>

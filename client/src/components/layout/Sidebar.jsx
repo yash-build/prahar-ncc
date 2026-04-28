@@ -26,7 +26,7 @@ const NAV_GROUPS = [
   {
     group: 'ANO Control',
     items: [
-      { name: 'Reports',        path: '/dashboard/reports',      icon: '📊', roles: ['ANO'] },
+      { name: 'Reports',        path: '/dashboard/reports',      icon: '📊', roles: ['ANO', 'SUO'] },
       { name: 'Batch Promotion',path: '/dashboard/batch',        icon: '⬆️', roles: ['ANO'] },
       { name: 'Settings',       path: '/dashboard/settings',     icon: '⚙️', roles: ['ANO'] },
       { name: 'Audit Logs',     path: '/dashboard/audit',        icon: '🔍', roles: ['ANO'] },

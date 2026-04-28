@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 // ── 6 distinct grid layouts (easily extendable to 30) ──────────────────
@@ -16,9 +17,9 @@ const RANK_COLOR = { SUO: '#d4af37', JUO: '#c2b280', SGT: '#4a5a48', CPL: '#6b7a
 const WING_BADGE = { SD: { bg: 'rgba(46,59,44,0.12)', color: '#2e3b2c' }, SW: { bg: 'rgba(194,178,128,0.18)', color: '#a89060' } };
 
 // ── Card Variants ────────────────────────────────────────────────────────
-const PortraitCard = ({ cadet, i }) => (
-  <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }} whileHover={{ y:-5 }}
-    className="card overflow-hidden group">
+const PortraitCard = ({ cadet, i, onClick }) => (
+  <motion.div onClick={onClick} initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }} whileHover={{ y:-5 }}
+    className="card overflow-hidden group cursor-pointer">
     <div className="h-48 bg-gradient-to-br from-olive/8 to-khaki/8 relative flex items-center justify-center overflow-hidden">
       {cadet.photoUrl
         ? <img src={cadet.photoUrl} alt={cadet.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -38,9 +39,9 @@ const PortraitCard = ({ cadet, i }) => (
   </motion.div>
 );
 
-const LandscapeCard = ({ cadet, i }) => (
-  <motion.div initial={{ opacity:0, x:-16 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.05 }} whileHover={{ x:4 }}
-    className="card overflow-hidden flex group">
+const LandscapeCard = ({ cadet, i, onClick }) => (
+  <motion.div onClick={onClick} initial={{ opacity:0, x:-16 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.05 }} whileHover={{ x:4 }}
+    className="card overflow-hidden flex group cursor-pointer">
     <div className="w-36 bg-gradient-to-b from-olive/8 to-khaki/8 relative shrink-0 flex items-center justify-center">
       {cadet.photoUrl
         ? <img src={cadet.photoUrl} alt={cadet.name} className="w-full h-full object-cover" />
@@ -59,9 +60,9 @@ const LandscapeCard = ({ cadet, i }) => (
   </motion.div>
 );
 
-const WideCard = ({ cadet, i }) => (
-  <motion.div initial={{ opacity:0, scale:0.96 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i*0.06 }}
-    className="card overflow-hidden flex group" style={{ minHeight: 120 }}>
+const WideCard = ({ cadet, i, onClick }) => (
+  <motion.div onClick={onClick} initial={{ opacity:0, scale:0.96 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i*0.06 }}
+    className="card overflow-hidden flex group cursor-pointer" style={{ minHeight: 120 }}>
     <div className="w-28 shrink-0 bg-gradient-to-br from-olive/10 to-khaki/10 flex items-center justify-center">
       {cadet.photoUrl ? <img src={cadet.photoUrl} alt={cadet.name} className="w-full h-full object-cover" /> : <span className="font-display text-5xl text-olive/20">{cadet.name[0]}</span>}
     </div>
@@ -78,9 +79,9 @@ const WideCard = ({ cadet, i }) => (
   </motion.div>
 );
 
-const ListCard = ({ cadet, i }) => (
-  <motion.div initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.03 }}
-    className="card px-5 py-4 flex items-center gap-5 group hover:border-olive/20">
+const ListCard = ({ cadet, i, onClick }) => (
+  <motion.div onClick={onClick} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.03 }}
+    className="card px-5 py-4 flex items-center gap-5 group hover:border-olive/20 cursor-pointer">
     <div className="w-10 h-10 rounded-sm bg-olive/8 border border-olive/12 flex items-center justify-center shrink-0">
       {cadet.photoUrl ? <img src={cadet.photoUrl} alt={cadet.name} className="w-full h-full object-cover rounded-sm" /> : <span className="font-display text-xl text-olive/30">{cadet.name[0]}</span>}
     </div>
@@ -96,8 +97,8 @@ const ListCard = ({ cadet, i }) => (
   </motion.div>
 );
 
-const CompactCard = ({ cadet, i }) => (
-  <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i*0.03 }} whileHover={{ scale:1.04 }}
+const CompactCard = ({ cadet, i, onClick }) => (
+  <motion.div onClick={onClick} initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i*0.03 }} whileHover={{ scale:1.04 }}
     className="card overflow-hidden group cursor-pointer aspect-square flex flex-col">
     <div className="flex-1 bg-gradient-to-br from-olive/8 to-khaki/8 flex items-center justify-center overflow-hidden">
       {cadet.photoUrl ? <img src={cadet.photoUrl} alt={cadet.name} className="w-full h-full object-cover" /> : <span className="font-display text-3xl text-olive/20">{cadet.name[0]}</span>}
@@ -111,12 +112,13 @@ const CompactCard = ({ cadet, i }) => (
 
 const CARD_COMP = { portrait:'portrait', landscape:'landscape', wide:'wide', masonry:'portrait', list:'list', compact:'compact' };
 
-const renderCard = (type, cadet, i) => {
-  if (type === 'landscape') return <LandscapeCard key={cadet._id} cadet={cadet} i={i} />;
-  if (type === 'wide')      return <WideCard      key={cadet._id} cadet={cadet} i={i} />;
-  if (type === 'list')      return <ListCard      key={cadet._id} cadet={cadet} i={i} />;
-  if (type === 'compact')   return <CompactCard   key={cadet._id} cadet={cadet} i={i} />;
-  return <PortraitCard key={cadet._id} cadet={cadet} i={i} />;
+const renderCard = (type, cadet, i, navigate) => {
+  const onClick = () => navigate(`/cadets/${cadet._id}`);
+  if (type === 'landscape') return <LandscapeCard key={cadet._id} cadet={cadet} i={i} onClick={onClick} />;
+  if (type === 'wide')      return <WideCard      key={cadet._id} cadet={cadet} i={i} onClick={onClick} />;
+  if (type === 'list')      return <ListCard      key={cadet._id} cadet={cadet} i={i} onClick={onClick} />;
+  if (type === 'compact')   return <CompactCard   key={cadet._id} cadet={cadet} i={i} onClick={onClick} />;
+  return <PortraitCard key={cadet._id} cadet={cadet} i={i} onClick={onClick} />;
 };
 
 // ── Main Yearbook Page ───────────────────────────────────────────────────
@@ -125,6 +127,7 @@ const Yearbook = () => {
   const [loading,   setLoading]   = useState(true);
   const [layout,    setLayout]    = useState(LAYOUTS[0]);
   const [activeYear, setYear]     = useState('ALL');
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get('/cadets/public')
@@ -192,7 +195,7 @@ const Yearbook = () => {
                   <div className="gold-divider" /><h2 className="font-display text-3xl text-olive-dark tracking-wider">Senior Officers</h2><div className="flex-1 h-px bg-gradient-to-r from-khaki/30 to-transparent" />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                  {seniorOfficers.map((c,i) => <PortraitCard key={c._id} cadet={c} i={i} />)}
+                  {seniorOfficers.map((c,i) => <PortraitCard key={c._id} cadet={c} i={i} onClick={() => navigate(`/cadets/${c._id}`)} />)}
                 </div>
               </section>
             )}
@@ -207,12 +210,12 @@ const Yearbook = () => {
                   <div className="flex-1 h-px bg-gradient-to-r from-stone-200 to-transparent" />
                 </div>
                 <div className={`grid ${layout.cols} gap-5`}>
-                  {byYear(y).map((c,i) => renderCard(layout.card, c, i))}
+                  {byYear(y).map((c,i) => renderCard(layout.card, c, i, navigate))}
                 </div>
               </section>
             )) : (
               <div className={`grid ${layout.cols} gap-5`}>
-                {filtered.map((c,i) => renderCard(layout.card, c, i))}
+                {filtered.map((c,i) => renderCard(layout.card, c, i, navigate))}
               </div>
             )}
 

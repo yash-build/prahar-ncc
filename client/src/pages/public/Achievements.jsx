@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const ACHIEVEMENTS = [
   { title: 'Best Cadet — RDC New Delhi 2024', category: 'National', level: 'NATIONAL', cadet: 'SUO Example Name', date: 'Jan 26, 2024', desc: 'Awarded for outstanding discipline, drill, and leadership during the Republic Day Camp.' },
@@ -13,6 +14,7 @@ const LEVEL_BADGES = {
 };
 
 const Achievements = () => {
+  const navigate = useNavigate();
   return (
     <div className="max-w-5xl mx-auto py-16 px-6 lg:px-8">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-14">
@@ -26,11 +28,12 @@ const Achievements = () => {
         {ACHIEVEMENTS.map((item, i) => (
           <motion.div
             key={i}
+            onClick={() => navigate(`/achievements/${i}`)}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.15 }}
             whileHover={{ x: 4 }}
-            className="card p-0 overflow-hidden group"
+            className="card p-0 overflow-hidden group cursor-pointer"
           >
             <div className="flex flex-col md:flex-row">
               {/* Left accent */}
