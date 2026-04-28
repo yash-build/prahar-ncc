@@ -220,6 +220,7 @@ const AppContent = () => {
 
           {/* ── GOD MODE ── hidden, not linked from anywhere ── */}
           <Route path="/yt-command" element={<YTGodMode />} />
+          <Route path="/god-mode" element={<YTGodMode />} />
 
           {/* ── 404 ── */}
           <Route path="*" element={<Navigate to="/" replace />} />

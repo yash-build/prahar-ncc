@@ -1,185 +1,67 @@
 /**
- * CadetDetail.jsx — Full cadet profile page
- * Shows attendance %, achievements timeline, personal message, honor status
+ * CadetDetail.jsx — Full cadet profile page (FIXED for new architecture)
+ * Uses useAuthStore + api instead of legacy AuthContext/cadetService
  */
-
 import { useEffect, useState } from 'react';
-import { useParams, Link }     from 'react-router-dom';
-import { useAuth }             from '../context/AuthContext';
-import {
-  Star, Award, Calendar, ChevronLeft, Shield,
-  MessageSquare, TrendingUp, AlertTriangle, Edit2, Check, X,
-} from 'lucide-react';
-import { cadetService, achievementService } from '../services/services';
-import { RankBadge, WingBadge }       from '../components/RankBadge';
-import LoadingSpinner                  from '../components/LoadingSpinner';
-import {
-  formatDate, getAttendanceColor, getAttendanceLabel,
-  getInitials, getPriorityConfig,
-} from '../utils/helpers';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import api from '../services/api';
+import useAuthStore from '../store/authStore';
+import AnimatedPage from '../components/layout/AnimatedPage';
 
 // ── Attendance ring ──────────────────────────────────────────────────────────
 const AttendanceRing = ({ pct }) => {
-  if (pct === null || pct === undefined) {
-    return (
-      <div className="flex flex-col items-center">
-        <div className="w-24 h-24 rounded-full border-4 border-[#2d3748] flex items-center justify-center">
-          <span className="text-[#6b7560] text-xs text-center">No data</span>
-        </div>
+  if (pct === null || pct === undefined) return (
+    <div className="flex flex-col items-center">
+      <div className="w-24 h-24 rounded-full border-4 border-olive/20 flex items-center justify-center">
+        <span className="text-olive-muted text-xs text-center">No data</span>
       </div>
-    );
-  }
-
-  const radius     = 36;
-  const circ       = 2 * Math.PI * radius;
+    </div>
+  );
+  const radius = 36;
+  const circ = 2 * Math.PI * radius;
   const strokeDash = (pct / 100) * circ;
-  const color      = pct >= 75 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#c0392b';
-
+  const color = pct >= 75 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#c0392b';
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative w-24 h-24">
         <svg width="96" height="96" viewBox="0 0 96 96">
-          {/* Background ring */}
-          <circle cx="48" cy="48" r={radius} fill="none" stroke="#2d3748" strokeWidth="8" />
-          {/* Progress ring */}
-          <circle
-            cx="48" cy="48" r={radius} fill="none"
-            stroke={color} strokeWidth="8"
-            strokeDasharray={`${strokeDash} ${circ}`}
-            strokeLinecap="round"
-            transform="rotate(-90 48 48)"
-            style={{ transition: 'stroke-dasharray 0.8s ease' }}
-          />
+          <circle cx="48" cy="48" r={radius} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="8" />
+          <circle cx="48" cy="48" r={radius} fill="none" stroke={color} strokeWidth="8"
+            strokeDasharray={`${strokeDash} ${circ}`} strokeLinecap="round"
+            transform="rotate(-90 48 48)" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-[#e8e4dc] leading-none">{pct}%</span>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xl font-bold text-olive-dark leading-none">{pct}%</span>
         </div>
       </div>
       <span className="text-xs font-medium" style={{ color }}>
-        {getAttendanceLabel(pct)}
+        {pct >= 75 ? 'Good Standing' : pct >= 50 ? 'At Risk' : 'Defaulter'}
       </span>
-    </div>
-  );
-};
-
-// ── Achievement card ─────────────────────────────────────────────────────────
-const AchievementItem = ({ a, canDelete, onDelete }) => (
-  <div className="flex items-start gap-3 p-3 bg-[#0f1117] rounded-lg border border-[#2d3748]">
-    <div className="w-8 h-8 rounded-lg bg-[#3d3000] border border-[#6b5a00] flex items-center justify-center flex-shrink-0 mt-0.5">
-      <Award size={14} className="text-[#c8b87a]" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-[#e8e4dc] text-sm font-semibold leading-tight">{a.title}</p>
-      {a.description && (
-        <p className="text-[#6b7560] text-xs mt-0.5 leading-relaxed">{a.description}</p>
-      )}
-      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-        {a.type && (
-          <span className="text-[10px] bg-[#1c2128] border border-[#2d3748] text-[#8a9080] px-2 py-0.5 rounded">
-            {a.type}
-          </span>
-        )}
-        {a.level && (
-          <span className="text-[10px] bg-[#3d3000] border border-[#6b5a00] text-[#c8b87a] px-2 py-0.5 rounded font-bold">
-            {a.level}
-          </span>
-        )}
-        <span className="text-[10px] text-[#4a5240] flex items-center gap-1">
-          <Calendar size={9} /> {formatDate(a.date)}
-        </span>
-      </div>
-    </div>
-    {canDelete && (
-      <button onClick={() => onDelete(a._id)} className="text-[#5a2a2a] hover:text-red-400 text-xs transition-colors flex-shrink-0">
-        <X size={14} />
-      </button>
-    )}
-  </div>
-);
-
-// ── Personal message editor ──────────────────────────────────────────────────
-const PersonalMessage = ({ cadetId, initial, canEdit }) => {
-  const [editing, setEditing]   = useState(false);
-  const [message, setMessage]   = useState(initial || '');
-  const [loading, setLoading]   = useState(false);
-
-  const save = async () => {
-    if (message.length > 500) { toast.error('Max 500 characters'); return; }
-    setLoading(true);
-    try {
-      await cadetService.updateMessage(cadetId, message);
-      toast.success('Message updated');
-      setEditing(false);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!initial && !canEdit) return null;
-
-  return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={14} className="text-[#4a5240]" />
-          <span className="text-xs text-[#8a9080] uppercase tracking-wider font-semibold">
-            ANO's Message
-          </span>
-        </div>
-        {canEdit && !editing && (
-          <button onClick={() => setEditing(true)} className="text-[#4a5240] hover:text-[#6b7560]">
-            <Edit2 size={13} />
-          </button>
-        )}
-      </div>
-
-      {editing ? (
-        <div>
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            maxLength={500}
-            rows={3}
-            className="input text-sm resize-none"
-            placeholder="Write a personal note for this cadet..."
-          />
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-[#4a5240]">{message.length}/500</span>
-            <div className="flex gap-2">
-              <button onClick={() => setEditing(false)} className="btn-ghost text-xs py-1.5 px-3">
-                Cancel
-              </button>
-              <button onClick={save} disabled={loading} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1">
-                {loading ? <div className="w-3 h-3 border border-[#6b7560] border-t-[#c8b87a] rounded-full animate-spin" /> : <Check size={12} />}
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <p className="text-[#8a9080] text-sm leading-relaxed italic">
-          {message || (canEdit ? 'Click edit to add a personal message...' : 'No message')}
-        </p>
-      )}
     </div>
   );
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const CadetDetail = () => {
-  const { id }          = useParams();
-  const { isANO }       = useAuth();
-  const [cadet,  setCadet]  = useState(null);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isANO = user?.role === 'ANO';
+  const [cadet, setCadet] = useState(null);
+  const [attendance, setAttendance] = useState({ entries: [], stats: { total: 0, present: 0, percentage: 0 } });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await cadetService.getOne(id);
-        setCadet(res.data.cadet);
+        const [cadetRes, attRes] = await Promise.all([
+          api.get(`/cadets/${id}`),
+          api.get(`/attendance/cadet/${id}`).catch(() => ({ data: { entries: [], stats: { total: 0, present: 0, percentage: 0 } } })),
+        ]);
+        if (cadetRes.data.success) setCadet(cadetRes.data.cadet);
+        if (attRes.data.success) setAttendance(attRes.data);
       } catch {
         setCadet(null);
       } finally {
@@ -189,74 +71,48 @@ const CadetDetail = () => {
     load();
   }, [id]);
 
-  const handleDeleteAchievement = async (achId) => {
-    if (!confirm('Delete this achievement?')) return;
-    try {
-      await achievementService.remove(achId);
-      setCadet(prev => ({
-        ...prev,
-        achievements: prev.achievements.filter(a => a._id !== achId),
-      }));
-      toast.success('Achievement removed');
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleToggleHonor = async () => {
-    try {
-      await cadetService.toggleHonor(id, cadet.honorNote);
-      setCadet(prev => ({ ...prev, isHonored: !prev.isHonored }));
-      toast.success(cadet.isHonored ? 'Removed from Honor Board' : 'Added to Honor Board');
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
-
   if (loading) return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <LoadingSpinner size="lg" label="Loading profile..." />
-    </div>
+    <AnimatedPage className="page-shell flex items-center justify-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-khaki/20 border-t-khaki rounded-full animate-spin mx-auto mb-3" />
+        <p className="font-mono text-xs text-olive-muted">Loading profile...</p>
+      </div>
+    </AnimatedPage>
   );
 
   if (!cadet) return (
-    <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-      <p className="text-[#6b7560] text-lg">Cadet not found</p>
-      <Link to="/cadets" className="btn-ghost mt-4 inline-flex items-center gap-2 text-sm">
-        <ChevronLeft size={14} /> Back to Registry
-      </Link>
-    </div>
+    <AnimatedPage className="page-shell">
+      <button onClick={() => navigate(-1)} className="btn-ghost mb-4">← Back</button>
+      <div className="card p-16 text-center">
+        <div className="empty-state-icon">👤</div>
+        <div className="empty-state-title">Cadet not found</div>
+        <div className="empty-state-sub">This profile may have been removed or the ID is invalid.</div>
+      </div>
+    </AnimatedPage>
   );
 
-  const { name, regNo, rank, wing, year, photoUrl, isHonored, honorNote,
-          personalMessage, attendance, achievements, phone, email, enrolledAt } = cadet;
+  const RANK_COLOR = { SUO: '#d4af37', JUO: '#c2b280', SGT: '#4a5a48', CPL: '#6b7a69', LCPL: '#6b7a69', CADET: '#a8b8a5' };
+  const rankColor = RANK_COLOR[cadet.rank] || '#a8b8a5';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <AnimatedPage className="page-shell">
+      <button onClick={() => navigate(-1)} className="btn-ghost mb-6 w-max">← Back to Registry</button>
 
-      {/* Back */}
-      <Link to="/cadets" className="inline-flex items-center gap-1.5 text-[#6b7560] hover:text-[#e8e4dc] text-sm mb-6 transition-colors">
-        <ChevronLeft size={14} /> Back to Registry
-      </Link>
-
-      {/* Profile header */}
-      <div className="card p-6 mb-6 animate-fade-up">
+      {/* Profile Header */}
+      <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row gap-6">
-
           {/* Avatar */}
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <div className="relative">
-              {photoUrl ? (
-                <img src={photoUrl} alt={name}
-                  className={`w-28 h-28 rounded-xl object-cover border-2 ${isHonored ? 'border-[#c8b87a]' : 'border-[#2d3748]'}`} />
-              ) : (
-                <div className={`w-28 h-28 rounded-xl bg-[#2d3748] flex items-center justify-center border-2 ${isHonored ? 'border-[#c8b87a]' : 'border-[#2d3748]'}`}>
-                  <span className="text-3xl font-bold text-[#6b7560]">{getInitials(name)}</span>
-                </div>
-              )}
-              {isHonored && (
-                <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#c8b87a] rounded-full flex items-center justify-center shadow-lg">
-                  <Star size={13} fill="currentColor" className="text-[#2e3328]" />
+              {cadet.photoUrl
+                ? <img src={cadet.photoUrl} alt={cadet.name} className="w-28 h-28 rounded-sm object-cover border-2 border-khaki/40" />
+                : <div className="w-28 h-28 rounded-sm bg-gradient-to-br from-olive/10 to-khaki/10 border-2 border-olive/20 flex items-center justify-center">
+                    <span className="font-display text-5xl text-olive/30">{cadet.name?.[0]}</span>
+                  </div>
+              }
+              {cadet.isHonorRoll && (
+                <div className="absolute -top-2 -right-2 w-7 h-7 bg-gold rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-xs">★</span>
                 </div>
               )}
             </div>
@@ -266,167 +122,98 @@ const CadetDetail = () => {
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <h1 className="text-2xl font-bold text-[#e8e4dc] font-serif leading-tight">{name}</h1>
-                <p className="text-[#6b7560] text-sm font-mono mt-0.5">{regNo}</p>
+                <div className="font-mono text-2xs text-olive-muted tracking-military mb-1">{cadet.serviceNumber}</div>
+                <h1 className="font-display text-4xl text-olive-dark uppercase">{cadet.name}</h1>
               </div>
               {isANO && (
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={handleToggleHonor}
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border font-semibold transition-all
-                      ${isHonored
-                        ? 'bg-[#3d3000] text-[#c8b87a] border-[#6b5a00] hover:bg-[#5a4500]'
-                        : 'bg-transparent text-[#6b7560] border-[#2d3748] hover:border-[#c8b87a] hover:text-[#c8b87a]'}`}
-                  >
-                    <Star size={12} fill={isHonored ? 'currentColor' : 'none'} />
-                    {isHonored ? 'Honored' : 'Honor'}
-                  </button>
-                  <Link to={`/admin?editCadet=${id}`} className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5">
-                    <Edit2 size={12} /> Edit
-                  </Link>
+                <div className="flex gap-2">
+                  <button onClick={() => toast('Use Edit button in registry')} className="btn-ghost text-xs">✎ Edit</button>
                 </div>
               )}
             </div>
-
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <RankBadge rank={rank} size="md" />
-              <WingBadge wing={wing} size="md" />
-              <span className="text-xs bg-[#1c2128] border border-[#2d3748] text-[#6b7560] px-2.5 py-1 rounded">
-                Year {year}
+            <div className="flex flex-wrap gap-2 mt-4">
+              <span className="font-mono text-2xs font-bold px-2 py-0.5 rounded-sm border"
+                style={{ background: `${rankColor}25`, color: rankColor, borderColor: `${rankColor}40` }}>
+                {cadet.rank}
               </span>
-              {attendance?.isDefaulter && (
-                <span className="flex items-center gap-1 text-xs bg-[#3a0000] border border-[#8a0000] text-red-400 px-2.5 py-1 rounded font-bold">
-                  <AlertTriangle size={11} /> Defaulter
-                </span>
-              )}
+              <span className="badge-olive">{cadet.wing} Wing</span>
+              <span className="badge">Year {cadet.yearOfStudy}</span>
+              <span className="badge">{cadet.batchYear}</span>
+              {cadet.status === 'PASSED_OUT' && <span className="badge-red">PASSED OUT</span>}
             </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {phone && (
-                <div>
-                  <p className="text-[10px] text-[#4a5240] uppercase tracking-wider">Phone</p>
-                  <p className="text-sm text-[#8a9080]">{phone}</p>
-                </div>
-              )}
-              {email && (
-                <div>
-                  <p className="text-[10px] text-[#4a5240] uppercase tracking-wider">Email</p>
-                  <p className="text-sm text-[#8a9080] truncate">{email}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-[10px] text-[#4a5240] uppercase tracking-wider">Enrolled</p>
-                <p className="text-sm text-[#8a9080]">{formatDate(enrolledAt)}</p>
-              </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              {cadet.phone && <div><p className="font-mono text-2xs text-olive-muted uppercase tracking-wider">Phone</p><p className="text-sm text-olive-dark">{cadet.phone}</p></div>}
+              {cadet.email && <div><p className="font-mono text-2xs text-olive-muted uppercase tracking-wider">Email</p><p className="text-sm text-olive-dark truncate">{cadet.email}</p></div>}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3-column info grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      {/* Stats row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        {/* Attendance Ring */}
+        <div className="card p-5 flex flex-col items-center gap-3">
+          <div className="font-mono text-2xs text-olive-muted uppercase tracking-wider self-start">Attendance</div>
+          <AttendanceRing pct={attendance.stats?.percentage} />
+          <p className="font-mono text-2xs text-olive-muted text-center">
+            {attendance.stats?.present || 0}/{attendance.stats?.total || 0} sessions
+          </p>
+        </div>
 
-        {/* Attendance ring */}
-        <div className="card p-5 flex flex-col items-center gap-3 animate-fade-up-delay-1">
-          <div className="flex items-center gap-2 self-start">
-            <TrendingUp size={14} className="text-[#4a5240]" />
-            <span className="text-xs text-[#8a9080] uppercase tracking-wider font-semibold">Attendance</span>
-          </div>
-          <AttendanceRing pct={attendance?.percentage} />
-          {attendance?.sessionsTotal > 0 && (
-            <p className="text-[10px] text-[#4a5240] text-center">
-              {attendance.sessionsPresent}/{attendance.sessionsTotal} sessions
-            </p>
+        {/* Honor Status */}
+        <div className={`card p-5 ${cadet.isHonorRoll ? 'border-khaki/40' : ''}`}>
+          <div className="font-mono text-2xs text-olive-muted uppercase tracking-wider mb-3">Honor Status</div>
+          {cadet.isHonorRoll
+            ? <p className="text-khaki-dark font-bold text-lg">★ Honored Cadet</p>
+            : <p className="text-olive-muted/60 text-sm">Not on Honor Roll</p>
+          }
+          {cadet.yearbookMessage && (
+            <p className="text-olive-muted text-xs mt-2 italic border-l-2 border-khaki/30 pl-2">&quot;{cadet.yearbookMessage}&quot;</p>
           )}
         </div>
 
-        {/* Achievements count */}
-        <div className="card p-5 animate-fade-up-delay-2">
-          <div className="flex items-center gap-2 mb-3">
-            <Award size={14} className="text-[#c8b87a]" />
-            <span className="text-xs text-[#8a9080] uppercase tracking-wider font-semibold">Achievements</span>
+        {/* Gender / Status */}
+        <div className="card p-5">
+          <div className="font-mono text-2xs text-olive-muted uppercase tracking-wider mb-3">Cadet Info</div>
+          <div className="space-y-2">
+            <div><span className="font-mono text-2xs text-olive-muted">Gender: </span><span className="text-olive-dark text-sm">{cadet.gender === 'M' ? 'Male' : 'Female'}</span></div>
+            <div><span className="font-mono text-2xs text-olive-muted">Status: </span><span className="text-olive-dark text-sm">{cadet.status}</span></div>
+            <div><span className="font-mono text-2xs text-olive-muted">Enrolled: </span><span className="text-olive-dark text-sm">{cadet.createdAt ? new Date(cadet.createdAt).toLocaleDateString('en-IN') : '—'}</span></div>
           </div>
-          <p className="text-4xl font-bold text-[#e8e4dc] font-serif">{achievements?.length || 0}</p>
-          <p className="text-xs text-[#6b7560] mt-1">Total records</p>
-          {achievements?.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {['National', 'State', 'District'].map(lvl => {
-                const count = achievements.filter(a => a.level === lvl).length;
-                return count > 0 ? (
-                  <div key={lvl} className="flex items-center justify-between text-xs">
-                    <span className="text-[#6b7560]">{lvl}</span>
-                    <span className="text-[#c8b87a] font-bold">{count}</span>
-                  </div>
-                ) : null;
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Honor status */}
-        <div className={`card p-5 animate-fade-up-delay-3 ${isHonored ? 'border-[#6b5a00]' : ''}`}>
-          <div className="flex items-center gap-2 mb-3">
-            <Star size={14} className={isHonored ? 'text-[#c8b87a]' : 'text-[#4a5240]'} fill={isHonored ? 'currentColor' : 'none'} />
-            <span className="text-xs text-[#8a9080] uppercase tracking-wider font-semibold">Honor Status</span>
-          </div>
-          {isHonored ? (
-            <>
-              <p className="text-[#c8b87a] font-bold text-sm">★ Honored Cadet</p>
-              {honorNote && <p className="text-[#8a9080] text-xs mt-2 leading-relaxed italic">"{honorNote}"</p>}
-            </>
-          ) : (
-            <p className="text-[#4a5240] text-sm">Not honored yet</p>
-          )}
         </div>
       </div>
 
-      {/* Personal message */}
-      <div className="mb-6 animate-fade-up">
-        <PersonalMessage
-          cadetId={id}
-          initial={personalMessage}
-          canEdit={isANO}
-        />
-      </div>
-
-      {/* Achievements timeline */}
-      <div className="card p-5 animate-fade-up">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Award size={14} className="text-[#c8b87a]" />
-            <span className="text-sm text-[#8a9080] uppercase tracking-wider font-semibold">
-              Achievement Record
-            </span>
+      {/* Attendance history */}
+      {attendance.entries?.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-stone-100">
+            <h3 className="font-heading font-bold text-olive-dark uppercase text-sm">Attendance History</h3>
           </div>
-          {isANO && (
-            <Link
-              to={`/admin?addAchievement=${id}`}
-              className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1"
-            >
-              + Add
-            </Link>
-          )}
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr><th>Date</th><th>Session</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {attendance.entries.slice(0, 20).map((e, i) => (
+                  <motion.tr key={e._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}>
+                    <td className="font-mono text-xs text-olive-muted">
+                      {e.sessionId?.date ? new Date(e.sessionId.date).toLocaleDateString('en-IN') : '—'}
+                    </td>
+                    <td className="font-mono text-xs">{e.sessionId?.sessionType || '—'}</td>
+                    <td>
+                      <span className={`badge ${e.status === 'P' ? 'badge-green' : e.status === 'A' ? 'badge-red' : 'badge-amber'}`}>
+                        {e.status === 'P' ? 'Present' : e.status === 'A' ? 'Absent' : 'Leave'}
+                      </span>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        {achievements?.length === 0 ? (
-          <div className="text-center py-8">
-            <Award size={32} className="text-[#2d3748] mx-auto mb-2" />
-            <p className="text-[#4a5240] text-sm">No achievements recorded yet</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {achievements.map(a => (
-              <AchievementItem
-                key={a._id}
-                a={a}
-                canDelete={isANO}
-                onDelete={handleDeleteAchievement}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </AnimatedPage>
   );
 };
 
