@@ -1,103 +1,141 @@
-/**
- * Achievement Controller
- */
-
 const Achievement = require('../models/Achievement');
-const Cadet       = require('../models/Cadet');
+const AuditLog = require('../models/AuditLog');
+const cloudinary = require('../config/cloudinary');
 
-// ── @route   GET /api/achievements/cadet/:cadetId ─────────────────────────
-// ── @access  Public
-const getCadetAchievements = async (req, res, next) => {
+// GET /api/achievements
+const getAchievements = async (req, res, next) => {
   try {
-    const achievements = await Achievement.find({ cadet: req.params.cadetId })
-      .sort({ date: -1 })
-      .populate('addedBy', 'name')
-      .lean();
+    const { status, level, search, page = 1, limit = 50 } = req.query;
+    const query = { unitId: req.user.unit };
 
-    res.json({ success: true, achievements });
-  } catch (err) {
-    next(err);
-  }
+    if (status) query.status = status;
+    if (level) query.level = level;
+    if (search) query.name = { $regex: search, $options: 'i' };
+
+    const total = await Achievement.countDocuments(query);
+    const achievements = await Achievement.find(query)
+      .populate('cadetId', 'name rank serviceNumber photoThumbUrl')
+      .populate('suggestedBy', 'name role')
+      .populate('approvedBy', 'name')
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    res.json({ success: true, achievements, total, page: Number(page), pages: Math.ceil(total / limit) });
+  } catch (err) { next(err); }
 };
 
-// ── @route   POST /api/achievements ──────────────────────────────────────
-// ── @access  Private (ANO only)
-const addAchievement = async (req, res, next) => {
+// POST /api/achievements
+const createAchievement = async (req, res, next) => {
   try {
-    const { cadetId, title, type, level, description, date, certificateUrl } = req.body;
+    let certificateUrl;
 
-    // Confirm cadet exists
-    const cadet = await Cadet.findById(cadetId);
-    if (!cadet) return res.status(404).json({ success: false, message: 'Cadet not found' });
+    if (req.file) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'prahar/achievements', resource_type: 'auto' },
+          (err, result) => err ? reject(err) : resolve(result)
+        );
+        stream.end(req.file.buffer);
+      });
+      certificateUrl = result.secure_url;
+    }
+
+    const isAno = req.user.role === 'ANO';
+    const status = isAno ? 'APPROVED' : 'SUGGESTED';
+    const approvedBy = isAno ? req.user._id : undefined;
 
     const achievement = await Achievement.create({
-      cadet:          cadetId,
-      title,
-      type,
-      level,
-      description,
-      date,
-      certificateUrl: certificateUrl || '',
-      addedBy:        req.user._id,
+      ...req.body,
+      unitId: req.user.unit,
+      suggestedBy: req.user._id,
+      addedBy: req.user._id,
+      certificateUrl,
+      status,
+      approvedBy
+    });
+
+    await AuditLog.create({
+      action: 'ACHIEVEMENT_CREATED',
+      entityType: 'Achievement',
+      entityId: achievement._id,
+      performedBy: req.user._id,
+      details: { name: achievement.name, type: achievement.type }
     });
 
     res.status(201).json({ success: true, achievement });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ── @route   PUT /api/achievements/:id ───────────────────────────────────
-// ── @access  Private (ANO only)
+// PUT /api/achievements/:id
 const updateAchievement = async (req, res, next) => {
   try {
-    const achievement = await Achievement.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found' });
-
+    const achievement = await Achievement.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found.' });
+    
+    await AuditLog.create({
+      action: 'ACHIEVEMENT_UPDATED',
+      entityType: 'Achievement',
+      entityId: achievement._id,
+      performedBy: req.user._id
+    });
     res.json({ success: true, achievement });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ── @route   DELETE /api/achievements/:id ────────────────────────────────
-// ── @access  Private (ANO only)
+// DELETE /api/achievements/:id
 const deleteAchievement = async (req, res, next) => {
   try {
     const achievement = await Achievement.findByIdAndDelete(req.params.id);
-    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found' });
+    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found.' });
 
-    res.json({ success: true, message: 'Achievement deleted' });
-  } catch (err) {
-    next(err);
-  }
+    await AuditLog.create({
+      action: 'ACHIEVEMENT_DELETED',
+      entityType: 'Achievement',
+      entityId: req.params.id,
+      performedBy: req.user._id,
+      details: { name: achievement.name }
+    });
+
+    res.json({ success: true, message: 'Achievement deleted.' });
+  } catch (err) { next(err); }
 };
 
-// ── @route   GET /api/achievements/recent ────────────────────────────────
-// ── @access  Public — for public showcase on landing page
-const getRecentAchievements = async (req, res, next) => {
+// PUT /api/achievements/:id/approve
+const approveAchievement = async (req, res, next) => {
   try {
-    const achievements = await Achievement.find({})
+    const achievement = await Achievement.findByIdAndUpdate(
+      req.params.id,
+      { status: 'APPROVED', approvedBy: req.user._id },
+      { new: true }
+    );
+    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found.' });
+    res.json({ success: true, achievement });
+  } catch (err) { next(err); }
+};
+
+// PUT /api/achievements/:id/reject
+const rejectAchievement = async (req, res, next) => {
+  try {
+    const achievement = await Achievement.findByIdAndUpdate(
+      req.params.id,
+      { status: 'REJECTED' },
+      { new: true }
+    );
+    if (!achievement) return res.status(404).json({ success: false, message: 'Achievement not found.' });
+    res.json({ success: true, achievement });
+  } catch (err) { next(err); }
+};
+
+// GET /api/achievements/public
+const getPublicAchievements = async (req, res, next) => {
+  try {
+    const achievements = await Achievement.find({ showOnPublic: true, status: 'APPROVED' })
+      .populate('cadetId', 'name rank wing photoThumbUrl')
       .sort({ date: -1 })
-      .limit(10)
-      .populate('cadet', 'name rank wing photoUrl')
-      .lean();
-
+      .limit(20);
     res.json({ success: true, achievements });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-module.exports = {
-  getCadetAchievements,
-  addAchievement,
-  updateAchievement,
-  deleteAchievement,
-  getRecentAchievements,
-};
+module.exports = { getAchievements, createAchievement, updateAchievement, deleteAchievement, approveAchievement, rejectAchievement, getPublicAchievements };

@@ -1,40 +1,23 @@
-// ─────────────────────────────────────────────
-// routes/attendanceRoutes.js
-// ─────────────────────────────────────────────
-const express = require('express');
-const router  = express.Router();
-const {
-  getSessions, getSession, createSession,
-  markAttendance, bulkMark, toggleLock, getCadetAttendance,
-} = require('../controllers/attendanceController');
-const { protect }     = require('../middleware/authMiddleware');
-const { requireRole } = require('../middleware/roleMiddleware');
+// ERROR FIX #1: Single router — not combined with notices
+const router = require('express').Router();
+const ctrl = require('../controllers/attendanceController');
+const { protect } = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 
-router.get('/sessions',                   protect, getSessions);
-router.get('/sessions/:id',               protect, getSession);
-router.post('/sessions',                  protect, createSession);
-router.patch('/sessions/:id/mark',        protect, markAttendance);
-router.patch('/sessions/:id/bulk',        protect, bulkMark);
-router.patch('/sessions/:id/lock',        protect, requireRole('ANO'), toggleLock);
-router.get('/cadet/:cadetId',             protect, getCadetAttendance);
+router.use(protect);
 
-module.exports = router;
+router.get('/sessions', ctrl.getSessions);
+router.post('/sessions', requireRole('ANO', 'SUO'), ctrl.createSession);
+router.get('/sessions/:id', ctrl.getSession);
+router.put('/sessions/:id/submit', requireRole('ANO', 'SUO'), ctrl.submitSession);
+router.delete('/sessions/:id', requireRole('ANO'), ctrl.deleteSession);
 
+router.get('/sessions/:sessionId/entries', ctrl.getEntries);
+router.post('/sessions/:sessionId/entries', requireRole('ANO', 'SUO'), ctrl.saveEntries);
 
-// ─────────────────────────────────────────────
-// routes/noticeRoutes.js
-// ─────────────────────────────────────────────
-const express2 = require('express');
-const router2  = express2.Router();
-const { getNotices, createNotice, updateNotice, deleteNotice } = require('../controllers/noticeController');
-const { protect: protect2 }     = require('../middleware/authMiddleware');
-const { requireRole: requireRole2 } = require('../middleware/roleMiddleware');
+router.post('/override', requireRole('ANO'), ctrl.overrideEntry);
+router.get('/cadet/:cadetId', ctrl.getCadetAttendance);
+router.get('/monthly', ctrl.getMonthlyView);
+router.get('/defaulters', ctrl.getDefaulters);
 
-router2.get('/',        getNotices);
-router2.post('/',       protect2, createNotice);
-router2.put('/:id',     protect2, requireRole2('ANO'), updateNotice);
-router2.delete('/:id',  protect2, requireRole2('ANO'), deleteNotice);
-
-// Export separately — app.js imports each file individually
-// This file has dual export; split into separate files in prod
-module.exports = { attendanceRouter: router, noticeRouter: router2 };
+module.exports = router; // Single export

@@ -1,23 +1,18 @@
-const express = require('express');
-const router  = express.Router();
-const {
-  getCadets, getCadet, createCadet, updateCadet, deleteCadet,
-  toggleHonor, updateMessage, getDefaulters,
-} = require('../controllers/cadetController');
-const { protect }     = require('../middleware/authMiddleware');
-const { requireRole } = require('../middleware/roleMiddleware');
-const { upload }      = require('../config/cloudinary');
+const router = require('express').Router();
+const ctrl = require('../controllers/cadetController');
+const { protect } = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
+const upload = require('../middleware/upload');
 
-// Public routes
-router.get('/',              getCadets);
-router.get('/defaulters',    protect, getDefaulters);
-router.get('/:id',           getCadet);
+router.get('/public', ctrl.getPublicCadets);
 
-// Protected routes
-router.post('/',             protect, requireRole('ANO'), upload.single('photo'), createCadet);
-router.put('/:id',           protect, requireRole('ANO'), upload.single('photo'), updateCadet);
-router.delete('/:id',        protect, requireRole('ANO'), deleteCadet);
-router.patch('/:id/honor',   protect, requireRole('ANO'), toggleHonor);
-router.patch('/:id/message', protect, requireRole('ANO'), updateMessage);
+router.use(protect);
+
+router.get('/', requireRole('ANO', 'SUO'), ctrl.getCadets);
+router.post('/', requireRole('ANO', 'SUO'), upload.single('photo'), ctrl.createCadet);
+router.post('/batch', requireRole('ANO'), ctrl.createCadetsBatch);
+router.get('/:id', requireRole('ANO', 'SUO', 'cadet'), ctrl.getCadet);
+router.put('/:id', requireRole('ANO', 'SUO'), upload.single('photo'), ctrl.updateCadet);
+router.delete('/:id', requireRole('ANO'), ctrl.deleteCadet);
 
 module.exports = router;

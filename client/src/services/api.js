@@ -1,28 +1,30 @@
-/**
- * services/api.js
- * Base Axios instance — all API calls go through this.
- * Token injection handled in AuthContext.
- */
-
 import axios from 'axios';
+import useAuthStore from '../store/authStore';
 
+// ERROR FIX #5 — Uses VITE_ env variable with proper fallback
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 15000, // 15s timeout — important for slow connections
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' }
 });
 
-// Response interceptor — standardise error messages
-api.interceptors.response.use(
-  response => response,
-  error => {
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong';
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-    // Return a rejected promise with the message for easy catch
-    return Promise.reject(new Error(message));
+// Handle 401 globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout();
+    }
+    return Promise.reject(error);
   }
 );
 

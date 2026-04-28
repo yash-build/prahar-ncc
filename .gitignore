@@ -1,24 +1,20 @@
-# SHASTRA — NCC Unit Management System
-# .gitignore
-
 # Dependencies
 node_modules/
-client/node_modules/
-server/node_modules/
+*/node_modules/
 
 # Environment files — NEVER commit these
 .env
-client/.env
+*.env
 server/.env
-*.env.local
-*.env.production
+client/.env
+client/.env.production
 
-# Build output
+# Build outputs
+dist/
+build/
 client/dist/
-client/build/
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 
@@ -26,10 +22,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Editor
+# IDE
 .vscode/
 .idea/
-*.swp
 
-# Uploads (local dev only)
-server/uploads/
+# Uploads
+uploads/

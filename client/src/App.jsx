@@ -1,98 +1,222 @@
-/**
- * App.jsx — Root component with all routes defined
- */
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import useAuthStore from './store/authStore';
+import api from './services/api';
 
-// Pages
-import Landing       from './pages/Landing';
-import Login         from './pages/Login';
-import Dashboard     from './pages/Dashboard';
-import CadetRegistry from './pages/CadetRegistry';
-import CadetDetail   from './pages/CadetDetail';
-import AttendancePanel from './pages/AttendancePanel';
-import NoticeBoard   from './pages/NoticeBoard';
-import HonorBoard    from './pages/HonorBoard';
-import AdminPanel    from './pages/AdminPanel';
-import NotFound      from './pages/NotFound';
+// Public pages
+import Landing       from './pages/public/Landing';
+import Yearbook      from './pages/public/Yearbook';
+import Gallery       from './pages/public/Gallery';
+import Achievements  from './pages/public/Achievements';
+import PublicNotices from './pages/public/PublicNotices';
 
-// Components
-import Navbar          from './components/Navbar';
-import ProtectedRoute  from './components/ProtectedRoute';
-import LoadingSpinner  from './components/LoadingSpinner';
+// Auth
+import Login from './pages/auth/Login';
+import Setup from './pages/auth/Setup';
 
-// Inner app — needs auth context
-const AppRoutes = () => {
-  const { loading } = useAuth();
+// Dashboard pages
+import Dashboard          from './pages/dashboard/Dashboard';
+import CadetRegistry      from './pages/dashboard/CadetRegistry';
+import AttendancePage     from './pages/dashboard/AttendancePage';
+import NoticesPage        from './pages/dashboard/NoticesPage';
+import HonorRoll          from './pages/dashboard/HonorRoll';
+import GalleryManage      from './pages/dashboard/GalleryManage';
+import AchievementsManage from './pages/dashboard/AchievementsManage';
+import EventsPage         from './pages/dashboard/EventsPage';
+import ReportsPage        from './pages/dashboard/ReportsPage';
+import BatchPage          from './pages/dashboard/BatchPage';
+import SettingsPage       from './pages/dashboard/SettingsPage';
+import AuditLog           from './pages/dashboard/AuditLog';
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <LoadingSpinner size="lg" label="Loading SHASTRA..." />
+// Portal pages
+import PortalHome from './pages/portal/PortalHome';
+import { MyAttendance, MyNotices, MyEvents, MyAchievements, MyCertificates, MyProfile } from './pages/portal/stubs';
+
+// God Mode
+import YTGodMode from './pages/yt/YTGodMode';
+
+// Layouts
+import AppShell     from './components/layout/AppShell';
+import PublicLayout from './components/layout/PublicLayout';
+import PortalShell  from './components/layout/PortalShell';
+import OfflineBanner from './components/ui/OfflineBanner';
+import HydrationGate from './components/layout/HydrationGate';
+import { AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
+
+// ── Loading Spinner ─────────────────────────────────────
+const FullPageSpinner = () => (
+  <div style={{
+    position: 'fixed', inset: 0, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', background: '#1f2a1d', zIndex: 9999
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        width: 48, height: 48, border: '3px solid rgba(194,178,128,0.2)',
+        borderTop: '3px solid #c2b280', borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite', margin: '0 auto 16px'
+      }} />
+      <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(232,239,230,0.4)', letterSpacing: '0.2em' }}>
+        AUTHENTICATING...
       </div>
-    );
+    </div>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
+
+// ── Protected Route ─────────────────────────────────────
+const ProtectedRoute = ({ children, roles }) => {
+  const { user, token, isHydrated } = useAuthStore();
+  
+  if (!isHydrated) return null;
+  
+  if (!token || !user) {
+    console.log('[PRAHAR ROUTE] No auth → /login');
+    return <Navigate to="/login" replace />;
   }
+  
+  if (roles && !roles.includes(user.role)) {
+    const redirect = user.role === 'cadet' ? '/portal' : '/dashboard';
+    return <Navigate to={redirect} replace />;
+  }
+  
+  return children;
+};
 
+// ── Smart login redirect (if already logged in) ─────────
+const AuthRoute = ({ children }) => {
+  const { user, token, isHydrated } = useAuthStore();
+  if (!isHydrated) return null;
+  if (token && user) {
+    const dest = (user.role === 'ANO' || user.role === 'SUO') ? '/dashboard' : '/portal';
+    return <Navigate to={dest} replace />;
+  }
+  return children;
+};
+
+// ── Token verifier on app mount ─────────────────────────
+const AuthVerifier = () => {
+  const { token, setAuth, logout, hydrated } = useAuthStore();
+
+  useEffect(() => {
+    if (!hydrated) return; // wait for rehydration first
+    if (!token) return;
+
+    const verify = async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        if (data.success) {
+          console.log('[AuthVerifier] Token valid, user:', data.user?.role);
+          setAuth(data.user, token);
+        }
+      } catch (err) {
+        console.error('[AuthVerifier] Token invalid, logging out', err.message);
+        logout();
+      }
+    };
+    verify();
+  }, [isHydrated]); // run once after rehydration
+
+  return null;
+};
+
+// ── Main App ────────────────────────────────────────────
+const AppContent = () => {
+  const location = useLocation();
   return (
-    <>
-      <Navbar />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/"           element={<Landing />} />
-        <Route path="/login"      element={<Login />} />
-        <Route path="/honor-board" element={<HonorBoard />} />
-        <Route path="/cadets"     element={<CadetRegistry />} />
-        <Route path="/cadets/:id" element={<CadetDetail />} />
-        <Route path="/notices"    element={<NoticeBoard />} />
+    <HydrationGate>
+      <AuthVerifier />
+      <OfflineBanner />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1f2a1d',
+            color: '#e8efe6',
+            fontFamily: '"IBM Plex Mono", monospace',
+            fontSize: '12px',
+            borderRadius: '2px',
+            border: '1px solid rgba(194,178,128,0.2)',
+          },
+          success: { iconTheme: { primary: '#4ade80', secondary: '#1f2a1d' } },
+          error:   { iconTheme: { primary: '#f87171', secondary: '#1f2a1d' } },
+        }}
+      />
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
 
-        {/* Protected routes — any logged-in user */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
+          {/* ── PUBLIC ROUTES ── */}
+          <Route element={<PublicLayout />}>
+            <Route path="/"             element={<Landing />} />
+            <Route path="/yearbook"     element={<Yearbook />} />
+            <Route path="/gallery"      element={<Gallery />} />
+            <Route path="/achievements" element={<Achievements />} />
+            <Route path="/notices"      element={<PublicNotices />} />
+          </Route>
 
-        <Route path="/attendance" element={
-          <ProtectedRoute>
-            <AttendancePanel />
-          </ProtectedRoute>
-        } />
+          {/* ── AUTH ── */}
+          <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+          <Route path="/setup" element={<Setup />} />
 
-        {/* ANO-only route */}
-        <Route path="/admin" element={
-          <ProtectedRoute requireANO>
-            <AdminPanel />
-          </ProtectedRoute>
-        } />
+          {/* ── DASHBOARD (ANO + SUO) ── */}
+          <Route element={
+            <ProtectedRoute roles={['ANO', 'SUO']}>
+              <AppShell />
+            </ProtectedRoute>
+          }>
+            <Route path="/dashboard"              element={<Dashboard />} />
+            <Route path="/dashboard/cadets"       element={<CadetRegistry />} />
+            <Route path="/dashboard/attendance"   element={<AttendancePage />} />
+            <Route path="/dashboard/notices"      element={<NoticesPage />} />
+            <Route path="/dashboard/honor-roll"   element={<HonorRoll />} />
+            <Route path="/dashboard/gallery"      element={<GalleryManage />} />
+            <Route path="/dashboard/achievements" element={<AchievementsManage />} />
+            <Route path="/dashboard/events"       element={<EventsPage />} />
+            <Route path="/dashboard/reports"      element={<ReportsPage />} />
+            <Route path="/dashboard/batch"        element={
+              <ProtectedRoute roles={['ANO']}><BatchPage /></ProtectedRoute>
+            } />
+            <Route path="/dashboard/settings"     element={
+              <ProtectedRoute roles={['ANO']}><SettingsPage /></ProtectedRoute>
+            } />
+            <Route path="/dashboard/audit"        element={
+              <ProtectedRoute roles={['ANO']}><AuditLog /></ProtectedRoute>
+            } />
+          </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
+          {/* ── CADET PORTAL ── */}
+          <Route element={
+            <ProtectedRoute roles={['cadet', 'SUO', 'ANO']}>
+              <PortalShell />
+            </ProtectedRoute>
+          }>
+            <Route path="/portal"               element={<PortalHome />} />
+            <Route path="/portal/attendance"    element={<MyAttendance />} />
+            <Route path="/portal/notices"       element={<MyNotices />} />
+            <Route path="/portal/events"        element={<MyEvents />} />
+            <Route path="/portal/achievements"  element={<MyAchievements />} />
+            <Route path="/portal/certificates"  element={<MyCertificates />} />
+            <Route path="/portal/profile"       element={<MyProfile />} />
+          </Route>
+
+          {/* ── GOD MODE ── hidden, not linked from anywhere ── */}
+          <Route path="/yt-command" element={<YTGodMode />} />
+
+          {/* ── 404 ── */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
+      </AnimatePresence>
+    </HydrationGate>
   );
 };
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: '#1c2128',
-              color:      '#e8e4dc',
-              border:     '1px solid #2d3748',
-              fontFamily: 'IBM Plex Sans, sans-serif',
-              fontSize:   '14px',
-            },
-            success: { iconTheme: { primary: '#27ae60', secondary: '#1c2128' } },
-            error:   { iconTheme: { primary: '#c0392b', secondary: '#1c2128' } },
-          }}
-        />
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
+const App = () => (
+  <BrowserRouter>
+    <AppContent />
+  </BrowserRouter>
+);
+
+export default App;

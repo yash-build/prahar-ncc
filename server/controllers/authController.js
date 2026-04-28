@@ -1,126 +1,134 @@
-/**
- * Auth Controller
- * Handles user login and registration (ANO creates SUO accounts)
- */
-
-const jwt  = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 
-// ── Helper: Generate JWT ───────────────────────────────────────────────────
-const generateToken = (id) => {
+const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 };
 
-// ── @route   POST /api/auth/login ─────────────────────────────────────────
-// ── @access  Public
+// Login
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password.'
+      });
     }
 
-    // Fetch user WITH password (select: false by default)
     const user = await User.findOne({ email }).select('+password');
 
-    if (!user || !user.isActive) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password.'
+      });
     }
 
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account deactivated. Contact your ANO.'
+      });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false });
-
-    const token = generateToken(user._id);
+    const token = signToken(user._id);
 
     res.json({
       success: true,
       token,
       user: {
-        id:             user._id,
-        name:           user.name,
-        email:          user.email,
-        role:           user.role,
-        linkedCadetId:  user.linkedCadetId,
-      },
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profilePhoto: user.profilePhoto
+      }
     });
   } catch (err) {
     next(err);
   }
 };
 
-// ── @route   POST /api/auth/register ──────────────────────────────────────
-// ── @access  Private (ANO only) — ANO creates new accounts
+// Register — ERROR FIX #11: ANO accounts CANNOT be created via API
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, role, linkedCadetId } = req.body;
+    const { name, email, password, role, unitId } = req.body;
+
+    // CRITICAL: Prevent ANO creation via API
+    if (role === 'ANO') {
+      return res.status(403).json({
+        success: false,
+        message: 'ANO accounts can only be created by the system owner via seed script.'
+      });
+    }
 
     // Only ANO can create SUO accounts
-    if (req.user.role !== 'ANO' && role === 'ANO') {
-      return res.status(403).json({ success: false, message: 'Only ANO can create ANO accounts' });
+    if (role === 'SUO' && (!req.user || req.user.role !== 'ANO')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only ANO can create SUO accounts.'
+      });
     }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered.'
+      });
+    }
+
+    const expiresAt = role === 'SUO'
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 12 months
+      : null;
 
     const user = await User.create({
       name,
       email,
       password,
-      role:          role || 'SUO',
-      linkedCadetId: linkedCadetId || null,
+      role: role || 'cadet',
+      unit: unitId,
+      expiresAt
     });
+
+    // Audit log
+    await AuditLog.create({
+      action: 'USER_CREATED',
+      entityType: 'User',
+      entityId: user._id,
+      performedBy: req.user?._id,
+      details: { name, email, role }
+    });
+
+    const token = signToken(user._id);
 
     res.status(201).json({
       success: true,
-      message: `${role || 'SUO'} account created successfully`,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     });
   } catch (err) {
     next(err);
   }
 };
 
-// ── @route   GET /api/auth/me ─────────────────────────────────────────────
-// ── @access  Private
-const getMe = async (req, res) => {
-  res.json({ success: true, user: req.user });
-};
-
-// ── @route   GET /api/auth/users ─────────────────────────────────────────
-// ── @access  Private (ANO only)
-const listUsers = async (req, res, next) => {
+// Get current user
+const getMe = async (req, res, next) => {
   try {
-    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
-    res.json({ success: true, count: users.length, users });
+    res.json({ success: true, user: req.user });
   } catch (err) {
     next(err);
   }
 };
 
-// ── @route   PATCH /api/auth/users/:id/toggle ─────────────────────────────
-// ── @access  Private (ANO only) — deactivate a user
-const toggleUser = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    user.isActive = !user.isActive;
-    await user.save({ validateBeforeSave: false });
-
-    res.json({
-      success: true,
-      message: `User ${user.isActive ? 'activated' : 'deactivated'}`,
-      isActive: user.isActive,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-module.exports = { login, register, getMe, listUsers, toggleUser };
+module.exports = { login, register, getMe };

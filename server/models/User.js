@@ -1,71 +1,38 @@
-/**
- * User Model
- * Represents ANO and SUO accounts — NOT cadets
- * Cadets are stored separately in Cadet model
- */
-
 const mongoose = require('mongoose');
-const bcrypt   = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: {
-    type:     String,
-    required: [true, 'Name is required'],
-    trim:     true,
-    maxlength: [60, 'Name cannot exceed 60 characters'],
-  },
-
+  name: { type: String, required: true, trim: true },
   email: {
-    type:     String,
-    required: [true, 'Email is required'],
-    unique:   true,
+    type: String,
+    required: true,
+    unique: true,
     lowercase: true,
-    trim:     true,
-    match:    [/^\S+@\S+\.\S+$/, 'Invalid email format'],
+    trim: true
   },
-
-  password: {
-    type:     String,
-    required: [true, 'Password is required'],
-    minlength: [8, 'Password must be at least 8 characters'],
-    select:   false, // Never returned in queries unless explicitly asked
-  },
-
+  password: { type: String, required: true, minlength: 6 },
   role: {
-    type:    String,
-    enum:    ['ANO', 'SUO'],
-    default: 'SUO',
+    type: String,
+    enum: ['ANO', 'SUO', 'cadet'], // ERROR FIX #7 — cadet included
+    default: 'cadet'
   },
+  unit: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
+  isActive: { type: Boolean, default: true },
+  expiresAt: { type: Date }, // SUO accounts expire after 12 months
+  profilePhoto: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
 
-  // SUO can optionally be linked to a cadet record
-  linkedCadetId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref:  'Cadet',
-    default: null,
-  },
-
-  isActive: {
-    type:    Boolean,
-    default: true,
-  },
-
-  lastLogin: {
-    type: Date,
-  },
-
-}, { timestamps: true });
-
-// ── Hash password before saving ───────────────────────────────────────────────
-userSchema.pre('save', async function (next) {
+// Hash password before save
+userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
+  this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// ── Compare entered password with hash ────────────────────────────────────────
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+// Compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

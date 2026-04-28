@@ -1,25 +1,21 @@
-/**
- * Achievement Routes
- */
+const router = require('express').Router();
+const ctrl   = require('../controllers/achievementController');
+const { protect } = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
+const upload      = require('../middleware/upload');
 
-const express = require('express');
-const router  = express.Router();
+// ── Public route (no auth) ──
+router.get('/public', ctrl.getPublicAchievements);
 
-const {
-  getCadetAchievements,
-  addAchievement,
-  updateAchievement,
-  deleteAchievement,
-  getRecentAchievements,
-} = require('../controllers/achievementController');
+// ── All routes below require auth ──
+router.use(protect);
 
-const { protect }     = require('../middleware/authMiddleware');
-const { requireRole } = require('../middleware/roleMiddleware');
-
-router.get('/recent',           getRecentAchievements);               // Public
-router.get('/cadet/:cadetId',   getCadetAchievements);                // Public
-router.post('/',                protect, requireRole('ANO'), addAchievement);
-router.put('/:id',              protect, requireRole('ANO'), updateAchievement);
-router.delete('/:id',           protect, requireRole('ANO'), deleteAchievement);
+router.get('/',              ctrl.getAchievements);
+router.get('/admin',         ctrl.getAchievements);  // alias for dashboard
+router.post('/', upload.single('certificate'),        ctrl.createAchievement);
+router.put('/:id',         requireRole('ANO','SUO'),  ctrl.updateAchievement);
+router.delete('/:id',      requireRole('ANO'),        ctrl.deleteAchievement);
+router.put('/:id/approve', requireRole('ANO'),        ctrl.approveAchievement);
+router.put('/:id/reject',  requireRole('ANO'),        ctrl.rejectAchievement);
 
 module.exports = router;
