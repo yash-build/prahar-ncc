@@ -59,16 +59,18 @@ async function seedAll() {
   log(`Unit: ${unit.name}`);
 
   // ── Users ──
+  // NOTE: Pass plain-text password — the User model's pre('save') hook hashes it automatically.
+  // Do NOT pre-hash here or it gets double-hashed and becomes unverifiable!
   const P = 'prahar@2026';
   const [anoUser, suoUser, juo1User, c1User, c2User, c3User, c4User, c5User] = await Promise.all([
-    User.create({ name: 'Lt Yash Tiwari',   email: 'ano@lcit.edu.in',        password: await hash(P), role: 'ANO',   unit: unit._id, isActive: true }),
-    User.create({ name: 'Rahul Sharma',      email: 'suo.rahul@lcit.edu.in',  password: await hash(P), role: 'SUO',   unit: unit._id, isActive: true }),
-    User.create({ name: 'Priya Singh',       email: 'juo.priya@lcit.edu.in',  password: await hash(P), role: 'SUO',   unit: unit._id, isActive: true }),
-    User.create({ name: 'Arjun Patel',       email: 'arjun@lcit.edu.in',      password: await hash(P), role: 'cadet', unit: unit._id, isActive: true }),
-    User.create({ name: 'Sneha Verma',       email: 'sneha@lcit.edu.in',      password: await hash(P), role: 'cadet', unit: unit._id, isActive: true }),
-    User.create({ name: 'Karan Mishra',      email: 'karan@lcit.edu.in',      password: await hash(P), role: 'cadet', unit: unit._id, isActive: true }),
-    User.create({ name: 'Divya Nair',        email: 'divya@lcit.edu.in',      password: await hash(P), role: 'cadet', unit: unit._id, isActive: true }),
-    User.create({ name: 'Rohan Gupta',       email: 'rohan@lcit.edu.in',      password: await hash(P), role: 'cadet', unit: unit._id, isActive: true }),
+    User.create({ name: 'Lt Yash Tiwari',   email: 'ano@lcit.edu.in',        password: P, role: 'ANO',   unit: unit._id, isActive: true }),
+    User.create({ name: 'Rahul Sharma',      email: 'suo.rahul@lcit.edu.in',  password: P, role: 'SUO',   unit: unit._id, isActive: true }),
+    User.create({ name: 'Priya Singh',       email: 'juo.priya@lcit.edu.in',  password: P, role: 'SUO',   unit: unit._id, isActive: true }),
+    User.create({ name: 'Arjun Patel',       email: 'arjun@lcit.edu.in',      password: P, role: 'cadet', unit: unit._id, isActive: true }),
+    User.create({ name: 'Sneha Verma',       email: 'sneha@lcit.edu.in',      password: P, role: 'cadet', unit: unit._id, isActive: true }),
+    User.create({ name: 'Karan Mishra',      email: 'karan@lcit.edu.in',      password: P, role: 'cadet', unit: unit._id, isActive: true }),
+    User.create({ name: 'Divya Nair',        email: 'divya@lcit.edu.in',      password: P, role: 'cadet', unit: unit._id, isActive: true }),
+    User.create({ name: 'Rohan Gupta',       email: 'rohan@lcit.edu.in',      password: P, role: 'cadet', unit: unit._id, isActive: true }),
   ]);
   log('Created 8 user accounts');
 
@@ -161,7 +163,8 @@ async function run() {
     // Just seed the basic accounts without clearing
     const unit = await Unit.findOne() || await Unit.create({ name: '17 CG BN NCC', location: 'LCIT Campus, Bilaspur', anoName: 'Lt Yash Tiwari' });
     const P = 'prahar@2026';
-    const upsert = (email, data) => User.findOneAndUpdate({ email }, { ...data, password: bcrypt.hashSync(P, 10) }, { upsert: true, new: true });
+    const hashedP = bcrypt.hashSync(P, 12);
+    const upsert = (email, data) => User.findOneAndUpdate({ email }, { ...data, password: hashedP }, { upsert: true, new: true });
     await upsert('ano@lcit.edu.in',        { name: 'Lt Yash Tiwari',  role: 'ANO',   unit: unit._id, isActive: true });
     await upsert('suo.rahul@lcit.edu.in',  { name: 'Rahul Sharma',    role: 'SUO',   unit: unit._id, isActive: true });
     await upsert('juo.priya@lcit.edu.in',  { name: 'Priya Singh',     role: 'SUO',   unit: unit._id, isActive: true });
