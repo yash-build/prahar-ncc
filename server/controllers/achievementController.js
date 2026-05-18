@@ -1,6 +1,7 @@
 const Achievement = require('../models/Achievement');
 const AuditLog = require('../models/AuditLog');
 const cloudinary = require('../config/cloudinary');
+const { uploadBuffer } = require('../services/cloudinaryUpload');
 
 // GET /api/achievements
 const getAchievements = async (req, res, next) => {
@@ -31,13 +32,9 @@ const createAchievement = async (req, res, next) => {
     let certificateUrl;
 
     if (req.file) {
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: 'prahar/achievements', resource_type: 'auto' },
-          (err, result) => err ? reject(err) : resolve(result)
-        );
-        stream.end(req.file.buffer);
-      });
+      const isPdf = req.file.mimetype === 'application/pdf';
+      const resourceType = isPdf ? 'raw' : 'auto';
+      const result = await uploadBuffer(req.file.buffer, 'prahar/achievements', resourceType);
       certificateUrl = result.secure_url;
     }
 
@@ -138,4 +135,17 @@ const getPublicAchievements = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getAchievements, createAchievement, updateAchievement, deleteAchievement, approveAchievement, rejectAchievement, getPublicAchievements };
+// GET /api/achievements/my
+const getMyAchievements = async (req, res, next) => {
+  try {
+    const Cadet = require('../models/Cadet');
+    const cadet = await Cadet.findOne({ authId: req.user._id });
+    if (!cadet) return res.json({ success: true, achievements: [] });
+    
+    const achievements = await Achievement.find({ cadetId: cadet._id, status: 'APPROVED' })
+      .sort({ date: -1 });
+    res.json({ success: true, achievements });
+  } catch (err) { next(err); }
+};
+
+module.exports = { getAchievements, createAchievement, updateAchievement, deleteAchievement, approveAchievement, rejectAchievement, getPublicAchievements, getMyAchievements };

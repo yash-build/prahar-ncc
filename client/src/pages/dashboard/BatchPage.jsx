@@ -15,7 +15,11 @@ const BatchPage = () => {
     
     setLoading(true);
     try {
-      const { data } = await api.post('/yt/promote-all');
+      const currentYear = new Date().getFullYear();
+      const { data } = await api.post('/batch/promote', {
+        fromBatchYear: currentYear.toString(),
+        toBatchYear: (currentYear + 1).toString()
+      });
       if (data.success) {
         toast.success(data.message || 'Batch promotion successful!');
       }

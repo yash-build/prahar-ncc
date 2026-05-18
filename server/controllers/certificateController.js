@@ -1,6 +1,6 @@
 const Certificate = require('../models/Certificate');
 const AuditLog = require('../models/AuditLog');
-const cloudinary = require('../config/cloudinary');
+const { uploadBuffer } = require('../services/cloudinaryUpload');
 
 // GET /api/certificates
 const getCertificates = async (req, res, next) => {
@@ -26,13 +26,8 @@ const createCertificate = async (req, res, next) => {
     let fileUrl;
 
     if (req.file) {
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: 'prahar/certificates', resource_type: 'auto' },
-          (err, result) => err ? reject(err) : resolve(result)
-        );
-        stream.end(req.file.buffer);
-      });
+      const isPdf = req.file.mimetype === 'application/pdf';
+      const result = await uploadBuffer(req.file.buffer, 'prahar/certificates', isPdf ? 'raw' : 'auto');
       fileUrl = result.secure_url;
     }
 
@@ -91,4 +86,18 @@ const deleteCertificate = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getCertificates, createCertificate, verifyCertificate, deleteCertificate };
+// GET /api/certificates/my
+const getMyCertificates = async (req, res, next) => {
+  try {
+    const Cadet = require('../models/Cadet');
+    const cadet = await Cadet.findOne({ authId: req.user._id });
+    if (!cadet) return res.json({ success: true, certificates: [] });
+
+    const certificates = await Certificate.find({ cadetId: cadet._id, isVerified: true })
+      .sort({ issueDate: -1 });
+
+    res.json({ success: true, certificates });
+  } catch (err) { next(err); }
+};
+
+module.exports = { getCertificates, createCertificate, verifyCertificate, deleteCertificate, getMyCertificates };

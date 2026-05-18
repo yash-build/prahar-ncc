@@ -4,36 +4,34 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 const useAuthStore = create(
   persist(
     (set, get) => ({
-      user: null,
-      token: null,
+      user:       null,
+      token:      null,
       isHydrated: false,
 
       setAuth: (user, token) => {
         set({ user, token });
-        console.log('[PRAHAR AUTH] Logged in as:', user.role, user.email);
+        console.log('[AUTH] Logged in as:', user.role, user.email);
       },
-
       logout: () => {
         set({ user: null, token: null });
-        console.log('[PRAHAR AUTH] Logged out');
         window.location.href = '/login';
       },
-
       setHydrated: () => set({ isHydrated: true }),
 
-      isANO:   () => get().user?.role === 'ANO',
-      isSUO:   () => get().user?.role === 'SUO',
-      isCadet: () => get().user?.role === 'cadet',
-      isStaff: () => ['ANO', 'SUO'].includes(get().user?.role),
+      // Convenience role checks
+      isANO:    () => get().user?.role === 'ANO',
+      isSUO:    () => get().user?.role === 'SUO',
+      isCadet:  () => get().user?.role === 'cadet',
+      isGodMode:() => get().user?.isGodMode === true,
     }),
     {
-      name: 'prahar-auth-v2',
+      name:    'prahar-auth-v2',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
-        console.log('[PRAHAR AUTH] Rehydrated. User:', state?.user?.role || 'none');
+        console.log('[AUTH] Rehydrated:', state?.user?.role || 'none');
       },
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      partialize: (s) => ({ user: s.user, token: s.token }),
     }
   )
 );

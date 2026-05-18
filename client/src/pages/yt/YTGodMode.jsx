@@ -2,7 +2,7 @@
  * YTGodMode.jsx — PRAHAR God Mode Console
  * Full system admin beyond ANO — secret-key authenticated
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import godApi, { setGodSecret } from '../../services/godApi';
@@ -11,42 +11,70 @@ import GodPanelCadets from './GodPanelCadets';
 import { GodPanelNotices, GodPanelAchievements, GodPanelGallery, GodPanelAttendance } from './GodPanelData';
 import { GodPanelUndo, GodPanelLogs } from './GodPanelUndo';
 import { GodPanelSystem, GodPanelDebug } from './GodPanelSystem';
+import { GodPanelPageEditor, GodPanelHealth, GodPanelBulkOps } from './GodPanelExtras';
 
 const SECRET = import.meta.env.VITE_YT_SECRET || 'PRAHAR_YT_2024_HIDDEN';
 
 const sections = [
-  { key: 'overview',      label: 'Overview',       icon: '📊', group: 'Core' },
-  { key: 'users',         label: 'Users',          icon: '👥', group: 'Core' },
-  { key: 'cadets',        label: 'Cadets',         icon: '🎖️', group: 'Core' },
-  { key: 'attendance',    label: 'Attendance',     icon: '📋', group: 'Data' },
-  { key: 'notices',       label: 'Notices',        icon: '📢', group: 'Data' },
-  { key: 'achievements',  label: 'Achievements',   icon: '🏆', group: 'Data' },
-  { key: 'gallery',       label: 'Gallery',        icon: '🖼️', group: 'Data' },
-  { key: 'logs',          label: 'Audit Logs',     icon: '📋', group: 'System' },
-  { key: 'undo',          label: 'Undo Center',    icon: '↩️', group: 'System' },
-  { key: 'system',        label: 'System Control', icon: '⚙️', group: 'System' },
-  { key: 'debug',         label: 'Debug Panel',    icon: '🛠️', group: 'System' },
+  { key: 'overview',     label: 'Command Center',  icon: '📊', group: 'Core' },
+  { key: 'users',        label: 'User Control',    icon: '👥', group: 'Core' },
+  { key: 'cadets',       label: 'Cadet Control',   icon: '🎖️', group: 'Core' },
+  { key: 'attendance',   label: 'Attendance',      icon: '📋', group: 'Data' },
+  { key: 'notices',      label: 'Notices',         icon: '📢', group: 'Data' },
+  { key: 'achievements', label: 'Achievements',    icon: '🏆', group: 'Data' },
+  { key: 'gallery',      label: 'Gallery',         icon: '🖼️', group: 'Data' },
+  { key: 'logs',         label: 'Full Audit Log',  icon: '📜', group: 'System' },
+  { key: 'undo',         label: 'Undo Center',     icon: '↩️', group: 'System' },
+  { key: 'page-editor',  label: 'Page Editor',     icon: '✏️', group: 'System' },
+  { key: 'health',       label: 'System Health',   icon: '💚', group: 'System' },
+  { key: 'bulk',         label: 'Bulk Ops',        icon: '⚠️', group: 'System' },
+  { key: 'system',       label: 'System Control',  icon: '⚙️', group: 'System' },
+  { key: 'debug',        label: 'Debug Panel',     icon: '🛠️', group: 'System' },
 ];
 
 const YTGodMode = () => {
-  const [unlocked, setUnlocked]     = useState(false);
+  const [unlocked, setUnlocked]     = useState(() => sessionStorage.getItem('yt-unlocked') === '1');
   const [keyInput, setKeyInput]     = useState('');
   const [active, setActive]         = useState('overview');
   const [stats, setStats]           = useState(null);
+  const [attempts, setAttempts]     = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(null);
+
+  const fetchStats = () => godApi.get('/stats').then(r => { if (r.data.success) setStats(r.data.stats); }).catch(() => {});
+
+  // Re-establish godApi secret and fetch stats whenever unlocked becomes true.
+  // This covers BOTH: fresh password entry AND page reload where sessionStorage
+  // already marks the session as unlocked (module-level _secret resets on reload).
+  useEffect(() => {
+    if (!unlocked) return;
+    setGodSecret(SECRET);
+    fetchStats();
+  }, [unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unlock = () => {
+    if (lockedUntil && Date.now() < lockedUntil) {
+      const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
+      toast.error(`Locked. Try again in ${mins} minute(s).`);
+      return;
+    }
     if (keyInput === SECRET) {
       setGodSecret(SECRET);
       setUnlocked(true);
+      setAttempts(0);
+      sessionStorage.setItem('yt-unlocked', '1');
       toast.success('⚡ GOD MODE ACTIVATED', { duration: 3000, icon: '🔓' });
-      fetchStats();
     } else {
-      toast.error('Invalid access key');
+      const next = attempts + 1;
+      setAttempts(next);
       setKeyInput('');
+      if (next >= 5) {
+        setLockedUntil(Date.now() + 10 * 60 * 1000);
+        toast.error('Too many attempts. Locked for 10 minutes.');
+      } else {
+        toast.error(`Invalid key. ${5 - next} attempt(s) remaining.`);
+      }
     }
   };
-
-  const fetchStats = () => godApi.get('/stats').then(r => { if (r.data.success) setStats(r.data.stats); }).catch(() => {});
 
   /* ── LOCK SCREEN ─────────────────────────────────────────────── */
   if (!unlocked) return (
@@ -103,7 +131,7 @@ const YTGodMode = () => {
           ))}
         </nav>
         <div className="p-3 border-t" style={{ borderColor: 'rgba(239,68,68,0.15)' }}>
-          <button onClick={() => { setUnlocked(false); setKeyInput(''); setGodSecret(''); }}
+          <button onClick={() => { setUnlocked(false); setKeyInput(''); setGodSecret(''); sessionStorage.removeItem('yt-unlocked'); }}
             className="w-full font-mono text-2xs text-red-400/50 hover:text-red-300 py-2 transition-colors">
             ⏏ LOCK SYSTEM
           </button>
@@ -117,17 +145,31 @@ const YTGodMode = () => {
 
             {active === 'overview' && (
               <div>
-                <h2 className="font-display text-3xl text-parchment tracking-wide mb-6">System Overview</h2>
+                <div style={{ fontFamily: 'monospace', color: '#00ff41', fontSize: 18, letterSpacing: 4, marginBottom: 4 }}>COMMAND_CENTER.exe</div>
+                <div style={{ fontFamily: 'monospace', color: '#2a5a2a', fontSize: 11, marginBottom: 20 }}>Full system overview — all collections at a glance</div>
                 {stats ? (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-8">
                     {Object.entries(stats).map(([k, v]) => (
-                      <div key={k} className="p-5 text-center rounded-sm" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="font-display text-4xl text-gold mb-1">{v}</div>
-                        <div className="font-mono text-2xs text-white/30 uppercase tracking-widest">{k.replace(/([A-Z])/g, ' $1').replace('total ','').trim()}</div>
+                      <div key={k} style={{ padding: 16, textAlign: 'center', background: 'rgba(0,255,65,0.02)', border: '1px solid #1a3a1a' }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: 32, color: '#c8b98a', lineHeight: 1 }}>{v}</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#2a5a2a', marginTop: 4, letterSpacing: 2, textTransform: 'uppercase' }}>{k.replace(/([A-Z])/g, ' $1').trim()}</div>
                       </div>
                     ))}
                   </div>
-                ) : <div className="text-center py-12 text-white/30 font-mono text-sm">Loading stats...</div>}
+                ) : <div style={{ fontFamily: 'monospace', color: '#2a5a2a', padding: 40, textAlign: 'center' }}>// loading stats...</div>}
+                {/* Quick actions */}
+                <div style={{ fontFamily: 'monospace', color: '#2a5a2a', fontSize: 11, marginBottom: 8, letterSpacing: 2 }}>// QUICK ACTIONS</div>
+                <div className="flex flex-wrap gap-3">
+                  {[{ label: 'Generate Demo Data', fn: async () => { await godApi.post('/demo'); toast.success('Demo data generated'); fetchStats(); } },
+                    { label: 'Export All JSON',    fn: async () => { const {data} = await godApi.get('/export-all'); const b = new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `prahar-backup-${Date.now()}.json`; a.click(); toast.success('Export downloaded'); } },
+                    { label: 'Clear Notifications', fn: async () => { await godApi.post('/clear-notifications'); toast.success('Cleared'); } },
+                  ].map(a => (
+                    <button key={a.label} onClick={a.fn}
+                      style={{ padding: '8px 16px', fontFamily: 'monospace', fontSize: 11, background: '#0a1a0a', color: '#c8b98a', border: '1px solid #1a3a1a', cursor: 'pointer', letterSpacing: 1 }}>
+                      ▶ {a.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -139,6 +181,9 @@ const YTGodMode = () => {
             {active === 'gallery'      && <GodPanelGallery />}
             {active === 'logs'         && <GodPanelLogs />}
             {active === 'undo'         && <GodPanelUndo />}
+            {active === 'page-editor'  && <GodPanelPageEditor />}
+            {active === 'health'       && <GodPanelHealth />}
+            {active === 'bulk'         && <GodPanelBulkOps />}
             {active === 'system'       && <GodPanelSystem />}
             {active === 'debug'        && <GodPanelDebug />}
 

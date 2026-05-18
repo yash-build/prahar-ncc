@@ -10,13 +10,10 @@ const MyAchievementsPage = () => {
 
   useEffect(() => {
     // Filter achievements by logged-in cadet's service number or ID
-    api.get('/achievements/public')
+    api.get('/achievements/my')
       .then(r => {
         if (r.data.success) {
-          const mine = r.data.achievements.filter(a =>
-            a.cadetId === user?._id || a.cadetServiceNumber === user?.serviceNumber
-          );
-          setAchievements(mine);
+          setAchievements(r.data.achievements);
         }
       })
       .catch(() => {})

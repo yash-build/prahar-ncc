@@ -10,6 +10,7 @@ router.get('/public', ctrl.getPublicAchievements);
 // ── All routes below require auth ──
 router.use(protect);
 
+router.get('/my', requireRole('cadet'), ctrl.getMyAchievements);
 router.get('/',              ctrl.getAchievements);
 router.get('/admin',         ctrl.getAchievements);  // alias for dashboard
 router.post('/', upload.single('certificate'),        ctrl.createAchievement);

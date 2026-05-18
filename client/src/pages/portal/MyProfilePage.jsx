@@ -12,14 +12,10 @@ const MyProfilePage = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Find cadet record linked to logged-in user
-    api.get('/cadets').then(r => {
+    api.get('/cadets/my').then(r => {
       if (r.data.success) {
-        const match = r.data.cadets.find(c =>
-          c.email === user?.email || c.userId === user?._id
-        );
-        setCadet(match || null);
-        if (match) setMessage(match.yearbookMessage || '');
+        setCadet(r.data.cadet);
+        setMessage(r.data.cadet.yearbookMessage || '');
       }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
@@ -77,9 +73,11 @@ const MyProfilePage = () => {
                   { label: 'Service No.', value: cadet.serviceNumber },
                   { label: 'Year of Study', value: `Year ${cadet.yearOfStudy}` },
                   { label: 'Batch Year', value: cadet.batchYear },
-                  { label: 'Gender', value: cadet.gender === 'M' ? 'Male' : 'Female' },
-                  { label: 'Phone', value: cadet.phone },
-                  { label: 'Email', value: cadet.email },
+                  { label: 'Battalion', value: cadet.unitId?.name || '17 CG BN NCC' },
+                  { label: 'Gender', value: cadet.gender === 'F' ? 'Female' : 'Male' },
+                  { label: 'Phone', value: cadet.contactPhone || cadet.phone },
+                  { label: 'Email', value: cadet.contactEmail || cadet.email },
+                  { label: 'Attendance', value: `${cadet.attendancePercentage}% (${cadet.totalPresent} Present, ${cadet.totalAbsent} Absent, ${cadet.totalLeave} Leave)` }
                 ].map(f => (
                   <div key={f.label}>
                     <div className="font-mono text-2xs text-olive-muted uppercase tracking-wider mb-0.5">{f.label}</div>

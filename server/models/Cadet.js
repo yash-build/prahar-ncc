@@ -30,6 +30,8 @@ const cadetSchema = new mongoose.Schema({
   isDefaulter: { type: Boolean, default: false },
   isHonorRoll: { type: Boolean, default: false },
   honorRollYear: { type: String },
+  honorRollReason: { type: String, maxlength: 300 },
+  honorRollQuote: { type: String, maxlength: 150 },
   isSUOPosition: { type: Boolean, default: false },
   isJUOPosition: { type: Boolean, default: false },
   addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

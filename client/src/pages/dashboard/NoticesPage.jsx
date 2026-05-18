@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
@@ -13,9 +13,13 @@ const NoticesPage = () => {
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', body: '', priority: 'INFORMATION', targetAudience: 'ALL', expiresAt: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ title: '', body: '', priority: 'INFORMATION', targetAudience: 'ALL', expiresAt: '', attachment: null });
+  const fileInputRef = useRef(null);
+  
   const { user } = useAuthStore();
   const isANO = user?.role === 'ANO';
+  const isSUO = user?.role === 'SUO';
   const navigate = useNavigate();
 
   const fetchNotices = async () => {
@@ -31,15 +35,26 @@ const NoticesPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      const { data } = await api.post('/notices', form);
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, val]) => {
+        if (key === 'attachment' && val) formData.append('attachment', val);
+        else if (key !== 'attachment') formData.append(key, val);
+      });
+
+      const { data } = await api.post('/notices', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       if (data.success) {
-        toast.success('Notice created successfully');
+        toast.success(isANO ? 'Notice published successfully' : 'Notice submitted for approval');
         setShowForm(false);
-        setForm({ title: '', body: '', priority: 'INFORMATION', targetAudience: 'ALL', expiresAt: '' });
+        setForm({ title: '', body: '', priority: 'INFORMATION', targetAudience: 'ALL', expiresAt: '', attachment: null });
+        if (fileInputRef.current) fileInputRef.current.value = '';
         fetchNotices();
       }
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to create notice'); }
+    finally { setSubmitting(false); }
   };
 
   return (
@@ -49,7 +64,7 @@ const NoticesPage = () => {
           <div className="font-mono text-2xs text-olive-muted tracking-military mb-1">PUBLICATIONS</div>
           <h1 className="section-title">Notice Board</h1>
         </div>
-        {isANO && (
+        {(isANO || isSUO) && (
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">
             {showForm ? '✕ Cancel' : '+ New Notice'}
           </button>
@@ -57,34 +72,63 @@ const NoticesPage = () => {
       </div>
 
       {/* Create form */}
-      {showForm && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
-          <h3 className="font-heading font-bold text-olive-dark uppercase tracking-wide mb-5">New Notice</h3>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div><label className="label">Title</label><input className="input" value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} required maxLength={100} /></div>
-            <div><label className="label">Body</label><textarea className="input h-28 resize-none" value={form.body} onChange={e => setForm(p => ({...p, body: e.target.value}))} required maxLength={800} /></div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><label className="label">Priority</label>
-                <select className="input bg-white" value={form.priority} onChange={e => setForm(p => ({...p, priority: e.target.value}))}>
-                  <option value="INFORMATION">Information</option>
-                  <option value="IMPORTANT">Important</option>
-                  <option value="URGENT">Urgent</option>
-                </select>
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="card p-6">
+            <h3 className="font-heading font-bold text-olive-dark uppercase tracking-wide mb-5">
+              {isANO ? 'Publish New Notice' : 'Submit Draft Notice'}
+            </h3>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="label">Title</label>
+                <input className="input" value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} required maxLength={100} placeholder="Brief subject line" />
               </div>
-              <div><label className="label">Audience</label>
-                <select className="input bg-white" value={form.targetAudience} onChange={e => setForm(p => ({...p, targetAudience: e.target.value}))}>
-                  <option value="ALL">All</option><option value="SD">SD Wing</option><option value="SW">SW Wing</option>
-                </select>
+              <div>
+                <label className="label">Body / Instructions</label>
+                <textarea className="input h-28 resize-none" value={form.body} onChange={e => setForm(p => ({...p, body: e.target.value}))} required maxLength={800} placeholder="Full details of the notice..." />
               </div>
-              <div><label className="label">Expires At</label><input type="date" className="input" value={form.expiresAt} onChange={e => setForm(p => ({...p, expiresAt: e.target.value}))} required /></div>
-            </div>
-            <div className="flex gap-3"><button type="submit" className="btn-primary">Publish Notice</button><button type="button" onClick={() => setShowForm(false)} className="btn-ghost">Cancel</button></div>
-          </form>
-        </motion.div>
-      )}
+              
+              <div className="bg-stone-100 p-4 rounded border border-stone-200">
+                <label className="label">Attachment (Optional)</label>
+                <input 
+                  type="file" 
+                  accept="image/*,application/pdf" 
+                  ref={fileInputRef}
+                  onChange={e => setForm(p => ({ ...p, attachment: e.target.files[0] }))}
+                  className="block w-full text-sm text-olive-muted file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-sm file:font-bold file:bg-olive file:text-white hover:file:bg-olive-dark transition-colors" 
+                />
+                <p className="text-xs text-olive-muted mt-2 font-mono">Upload PDF orders or image circulars. Max 10MB.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label className="label">Priority</label>
+                  <select className="input bg-white" value={form.priority} onChange={e => setForm(p => ({...p, priority: e.target.value}))}>
+                    <option value="INFORMATION">Information</option>
+                    <option value="IMPORTANT">Important</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+                <div><label className="label">Audience</label>
+                  <select className="input bg-white" value={form.targetAudience} onChange={e => setForm(p => ({...p, targetAudience: e.target.value}))}>
+                    <option value="ALL">All Cadets</option><option value="SD">SD Wing Only</option><option value="SW">SW Wing Only</option>
+                  </select>
+                </div>
+                <div><label className="label">Expires At</label><input type="date" className="input" value={form.expiresAt} onChange={e => setForm(p => ({...p, expiresAt: e.target.value}))} required /></div>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+                  {submitting ? 'Processing...' : (isANO ? '✓ Publish Notice' : '✓ Submit for Approval')}
+                </button>
+                <button type="button" onClick={() => setShowForm(false)} className="btn-ghost">Cancel</button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* List */}
-      <div className="space-y-3">
+      <div className="space-y-3 mt-6">
         {loading ? [...Array(4)].map((_,i) => <div key={i} className="card p-5"><div className="skeleton h-5 w-1/2 mb-2" /><div className="skeleton h-4 w-3/4" /></div>) :
           notices.length === 0 ? <div className="card"><div className="empty-state"><div className="empty-state-icon">📢</div><div className="empty-state-title">No notices published</div></div></div> :
           notices.map((n, i) => (
@@ -95,12 +139,22 @@ const NoticesPage = () => {
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className={PRIORITY_COLORS[n.priority]}>{n.priority}</span>
                   <span className={AUDIENCE_COLORS[n.targetAudience]}>{n.targetAudience}</span>
-                  <span className="font-mono text-2xs text-olive-muted ml-auto">{new Date(n.publishedAt || n.createdAt).toLocaleDateString()}</span>
+                  {n.attachment?.url && (
+                    <span className="badge-olive bg-stone-200 text-olive-dark">📎 HAS ATTACHMENT</span>
+                  )}
+                  <span className="font-mono text-2xs text-olive-muted ml-auto hidden sm:block">
+                    {new Date(n.publishedAt || n.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
                 <h3 className="font-heading font-bold text-olive-dark text-lg">{n.title}</h3>
                 <p className="text-olive-muted text-sm mt-1 line-clamp-2">{n.body}</p>
+                <div className="font-mono text-2xs text-olive-muted mt-3 sm:hidden">
+                  {new Date(n.publishedAt || n.createdAt).toLocaleDateString()}
+                </div>
               </div>
-              <span className={`badge shrink-0 ${n.status === 'PUBLISHED' ? 'badge-green' : 'badge-amber'}`}>{n.status}</span>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <span className={`badge ${n.status === 'PUBLISHED' ? 'badge-green' : n.status === 'ARCHIVED' ? 'badge-red' : 'badge-amber'}`}>{n.status}</span>
+              </div>
             </motion.div>
           ))
         }

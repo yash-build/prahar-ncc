@@ -43,9 +43,18 @@ const Login = () => {
 
     } catch (err) {
       const msg = err.response?.data?.message || 'Authentication failed. Check credentials.';
+      const status = err.response?.data?.status;
+      
       console.error('[Login] Error:', msg, err.response?.status);
       setAttempts(p => p + 1);
-      setErrorMsg(msg);
+      
+      if (status === 'PENDING_APPROVAL') {
+        setErrorMsg('Your account is awaiting ANO approval. You will be notified when approved.');
+      } else if (status === 'REJECTED') {
+        setErrorMsg(msg);
+      } else {
+        setErrorMsg(msg);
+      }
       toast.error(msg);
     } finally {
       setLoading(false);

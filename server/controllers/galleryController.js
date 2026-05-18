@@ -1,6 +1,7 @@
 const GalleryItem = require('../models/GalleryItem');
 const AuditLog = require('../models/AuditLog');
 const cloudinary = require('../config/cloudinary');
+const { uploadBuffer } = require('../services/cloudinaryUpload');
 
 // GET /api/gallery
 const getGallery = async (req, res, next) => {
@@ -27,13 +28,7 @@ const createGalleryItem = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'Image file is required.' });
 
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'prahar/gallery', transformation: [{ width: 1200, crop: 'limit' }] },
-        (err, result) => err ? reject(err) : resolve(result)
-      );
-      stream.end(req.file.buffer);
-    });
+    const result = await uploadBuffer(req.file.buffer, 'prahar/gallery');
 
     const imageUrl = result.secure_url;
     const thumbUrl = result.secure_url.replace('/upload/', '/upload/w_300,h_300,c_fill/');

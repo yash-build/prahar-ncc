@@ -11,7 +11,7 @@ const AppShell = () => {
     <div className="flex min-h-screen bg-[#f4f2ec]">
       <aside className={`fixed left-0 top-0 h-full z-40 transition-all duration-300
                          ${sidebarOpen ? 'w-60' : 'w-16'} bg-[#2c3128]`}>
-        <Sidebar collapsed={!sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Sidebar onClose={() => setSidebarOpen(false)} />
       </aside>
       <div className={`flex-1 flex flex-col transition-all duration-300
                        ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>

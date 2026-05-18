@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, Check, BellRing } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
@@ -7,6 +7,15 @@ const NotificationBell = () => {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
   const [unread, setUnread] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     fetchNotifs();
@@ -16,14 +25,14 @@ const NotificationBell = () => {
 
   const fetchNotifs = async () => {
     try {
-      // Assuming a general notice fetch works for now
       const res = await api.get('/notices', { params: { isPublic: true, limit: 5 } });
       if (res.data.success) {
-        // Mock unread count based on random logic or local storage for now
-        // Ideally backend would support /api/notifications
         const recent = res.data.notices.slice(0, 5);
         setNotifs(recent);
-        setUnread(Math.floor(Math.random() * 3)); // Placeholder for actual unread logic
+        // Stable unread: compare against last-seen notice _id stored in localStorage
+        const lastSeen = localStorage.getItem('prahar-last-notice-seen') || '';
+        const newCount = recent.filter(n => n._id > lastSeen).length;
+        setUnread(newCount);
       }
     } catch (e) {
       console.error('Failed to fetch notifications');
@@ -31,12 +40,16 @@ const NotificationBell = () => {
   };
 
   const markAllRead = () => {
+    // Persist the most recent notice ID so next fetch shows 0 unread
+    if (notifs.length > 0) {
+      localStorage.setItem('prahar-last-notice-seen', notifs[0]._id);
+    }
     setUnread(0);
     setOpen(false);
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
         className="relative p-2 text-[#c8b98a] hover:text-white transition-colors rounded-full hover:bg-white/5"
@@ -77,9 +90,9 @@ const NotificationBell = () => {
                       <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${i < unread ? 'bg-gold shadow-[0_0_5px_rgba(212,175,55,0.8)]' : 'bg-[#4a5240]'}`} />
                       <div>
                         <p className="text-sm font-semibold text-[#dde3d8] leading-tight mb-1">{n.title}</p>
-                        <p className="text-xs text-[#7a8a6e] line-clamp-2 leading-relaxed">{n.content}</p>
+                        <p className="text-xs text-[#7a8a6e] line-clamp-2 leading-relaxed">{n.body}</p>
                         <p className="text-[10px] font-mono text-[#c8b98a] mt-2 opacity-70">
-                          {new Date(n.createdAt || Date.now()).toLocaleDateString('en-GB')}
+                          {new Date(n.publishedAt || n.createdAt || Date.now()).toLocaleDateString('en-GB')}
                         </p>
                       </div>
                     </div>

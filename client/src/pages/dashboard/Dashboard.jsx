@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import useAuthStore from '../../store/authStore';
 import api from '../../services/api';
 import DemoSeedButton from '../../components/ui/DemoSeedButton';
+import PendingApprovals from '../../components/dashboard/PendingApprovals';
 import AnimatedPage from '../../components/layout/AnimatedPage';
 
 const KPI_CARDS = [
@@ -37,6 +39,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const Dashboard = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ totalCadets: 0, totalSessions: 0, totalNotices: 0 });
   const [wingData, setWingData] = useState([{ name: 'SD Wing', value: 0 }, { name: 'SW Wing', value: 0 }]);
   const [recentLogs, setRecentLogs] = useState([]);
@@ -90,6 +93,30 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {[
+          { label: 'Add Cadet',       icon: '👤', path: '/dashboard/cadets',    anoOnly: true  },
+          { label: 'Attendance',      icon: '📋', path: '/dashboard/attendance', anoOnly: false },
+          { label: 'Post Notice',     icon: '📢', path: '/dashboard/notices',    anoOnly: false },
+          { label: 'Batch Promotion', icon: '⬆️', path: '/dashboard/batch',      anoOnly: true  },
+          { label: 'Reports',         icon: '📊', path: '/dashboard/reports',    anoOnly: false },
+        ].filter(a => !a.anoOnly || user?.role === 'ANO').map((action, i) => (
+          <motion.button
+            key={action.label}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            whileHover={{ y: -2 }}
+            onClick={() => navigate(action.path)}
+            className="card p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-khaki/40 transition-colors group"
+          >
+            <span className="text-2xl group-hover:scale-110 transition-transform">{action.icon}</span>
+            <span className="font-mono text-2xs text-olive-muted uppercase tracking-military text-center">{action.label}</span>
+          </motion.button>
+        ))}
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {KPI_CARDS.map((kpi, i) => (
@@ -109,6 +136,15 @@ const Dashboard = () => {
           </motion.div>
         ))}
       </div>
+
+      {user?.role === 'ANO' && (
+        <div className="mt-6 mb-6">
+          <h2 className="font-mono text-xs text-[#4a5240] tracking-widest mb-3">
+            CADET ACCOUNT APPROVALS
+          </h2>
+          <PendingApprovals />
+        </div>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

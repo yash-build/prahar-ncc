@@ -69,8 +69,8 @@ const EditCadetForm = ({ cadet, onClose, onSuccess }) => {
               </div>
               <div><label className="label">Year of Study</label><input required type="number" min="1" max="3" className="input" value={form.yearOfStudy} onChange={e=>setForm({...form, yearOfStudy: parseInt(e.target.value)})} /></div>
               <div><label className="label">Batch Year</label><input required className="input" value={form.batchYear} onChange={e=>setForm({...form, batchYear: e.target.value})} /></div>
-              <div><label className="label">Phone</label><input required className="input" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} /></div>
-              <div><label className="label">Email</label><input required type="email" className="input" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
+              <div><label className="label">Phone (Optional)</label><input className="input" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} /></div>
+              <div><label className="label">Email (Optional)</label><input type="email" className="input" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
               <div><label className="label">Rank</label>
                 <select className="input" value={form.rank} onChange={e=>setForm({...form, rank: e.target.value})}>
                   <option>CADET</option><option>LCPL</option><option>CPL</option><option>SGT</option><option>JUO</option><option>SUO</option>

@@ -38,10 +38,27 @@ const getSessions = async (req, res, next) => {
 const createSession = async (req, res, next) => {
   try {
     const { date, sessionType, isMandatory, notes } = req.body;
+    const unitId = req.user.unit;
+
+    const normalizedDate = new Date(date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
+    const existing = await AttendanceSession.findOne({
+      unitId,
+      date: normalizedDate,
+      sessionType,
+    });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Session already exists for this date and type.',
+        existingId: existing._id,
+      });
+    }
 
     const session = await AttendanceSession.create({
-      unitId: req.user.unit,
-      date: normalizeDate(date),
+      unitId,
+      date: normalizedDate,
       sessionType,
       isMandatory: isMandatory !== undefined ? isMandatory : true,
       notes
@@ -56,6 +73,7 @@ const getSession = async (req, res, next) => {
   try {
     const session = await AttendanceSession.findById(req.params.id).populate('submittedBy', 'name');
     if (!session) return res.status(404).json({ success: false, message: 'Session not found.' });
+    if (session.isLocked) return res.status(403).json({ success: false, message: 'Session is permanently locked.' });
     res.json({ success: true, session });
   } catch (err) { next(err); }
 };

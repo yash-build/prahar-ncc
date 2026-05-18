@@ -20,7 +20,11 @@ const noticeSchema = new mongoose.Schema({
     enum: ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'ARCHIVED'],
     default: 'DRAFT'
   },
-  attachmentUrl: { type: String },
+  attachment: {
+    url: { type: String },
+    publicId: { type: String },
+    resourceType: { type: String, enum: ['image', 'video', 'raw', 'auto'], default: 'auto' }
+  },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   publishedAt: { type: Date }

@@ -7,7 +7,9 @@
 const YTConfig          = require('../models/YTConfig');
 const Cadet             = require('../models/Cadet');
 const User              = require('../models/User');
-const AuditLog          = require('../models/AuditLog');
+const GodModeLog        = require('../models/GodModeLog');
+// AuditLog is intentionally NOT imported here.
+// God Mode actions MUST NOT appear in /dashboard/audit (ANO-visible).
 const AttendanceSession = require('../models/AttendanceSession');
 const AttendanceEntry   = require('../models/AttendanceEntry');
 const Notice            = require('../models/Notice');
@@ -16,9 +18,10 @@ const GalleryItem       = require('../models/GalleryItem');
 const Event             = require('../models/Event');
 const bcrypt            = require('bcryptjs');
 
-// ─── Helper: log action with before/after ────────────────────────────────────
+// ─── Helper: log to GodModeLog ONLY (never AuditLog) ───────────────────────
+// God Mode actions are invisible to ANO — they do NOT appear in /dashboard/audit.
 const log = (action, entityType, entityId, before, after, severity = 'INFO') =>
-  AuditLog.create({ action, entityType, entityId, before, after, severity }).catch(() => {});
+  GodModeLog.create({ action, entityType, entityId, before, after, severity }).catch(() => {});
 
 // ─── SYSTEM STATS ────────────────────────────────────────────────────────────
 const getSystemStats = async (req, res, next) => {
@@ -32,7 +35,7 @@ const getSystemStats = async (req, res, next) => {
       Achievement.countDocuments(),
       GalleryItem.countDocuments(),
       Event.countDocuments(),
-      AuditLog.countDocuments(),
+      GodModeLog.countDocuments(), // God Mode log count (not AuditLog)
     ]);
     const activeCadets  = await Cadet.countDocuments({ status: 'ACTIVE' });
     const passedOut     = await Cadet.countDocuments({ status: 'PASSED_OUT' });
@@ -44,21 +47,19 @@ const getSystemStats = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ─── ALL AUDIT LOGS (filtered) ───────────────────────────────────────────────
+// ─── GOD MODE AUDIT LOGS (from GodModeLog — never AuditLog) ─────────────────
 const getAllLogs = async (req, res, next) => {
   try {
-    const { action, entityType, user: userId, date, page = 1, limit = 100 } = req.query;
+    const { action, entityType, date, page = 1, limit = 100 } = req.query;
     const q = {};
     if (action)     q.action = { $regex: action, $options: 'i' };
     if (entityType) q.entityType = entityType;
-    if (userId)     q.performedBy = userId;
     if (date) {
       const d = new Date(date);
       q.createdAt = { $gte: d, $lt: new Date(d.getTime() + 86400000) };
     }
-    const total = await AuditLog.countDocuments(q);
-    const logs  = await AuditLog.find(q)
-      .populate('performedBy', 'name role')
+    const total = await GodModeLog.countDocuments(q);
+    const logs  = await GodModeLog.find(q)
       .populate('undoneBy', 'name')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -240,12 +241,11 @@ const deleteGalleryItemGod = async (req, res, next) => {
 // ─── UNDO SYSTEM ─────────────────────────────────────────────────────────────
 const getUndoable = async (req, res, next) => {
   try {
-    const logs = await AuditLog.find({
+    const logs = await GodModeLog.find({
       before: { $ne: null },
       undone: false,
       action: { $regex: /(DELETED|UPDATED|RESET|PROMOTED|PASSED_OUT)/ }
     })
-      .populate('performedBy', 'name')
       .sort({ createdAt: -1 })
       .limit(50);
     res.json({ success: true, logs });
@@ -254,7 +254,7 @@ const getUndoable = async (req, res, next) => {
 
 const undoAction = async (req, res, next) => {
   try {
-    const logEntry = await AuditLog.findById(req.params.logId);
+    const logEntry = await GodModeLog.findById(req.params.logId);
     if (!logEntry) return res.status(404).json({ success: false, message: 'Log not found.' });
     if (logEntry.undone) return res.status(400).json({ success: false, message: 'Already undone.' });
     if (!logEntry.before) return res.status(400).json({ success: false, message: 'No snapshot to restore.' });
@@ -279,10 +279,10 @@ const undoAction = async (req, res, next) => {
     logEntry.undoneBy = req.user?._id;
     await logEntry.save();
 
-    await AuditLog.create({
+    // Log the undo itself back to GodModeLog
+    await GodModeLog.create({
       action: `UNDO_${logEntry.action}`, entityType, entityId,
-      before: logEntry.after, after: logEntry.before,
-      performedBy: req.user?._id, severity: 'WARN'
+      before: logEntry.after, after: logEntry.before, severity: 'WARN'
     });
 
     res.json({ success: true, message: `Successfully undid: ${logEntry.action}` });
@@ -358,6 +358,109 @@ const clearCache = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ─── NEW: SYSTEM HEALTH ──────────────────────────────────────────────────────
+const getSystemHealth = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const os = require('os');
+    const start = Date.now();
+    await mongoose.connection.db.command({ ping: 1 });
+    const dbLatency = Date.now() - start;
+    res.json({
+      success: true,
+      health: {
+        dbStatus:    'connected',
+        dbLatencyMs: dbLatency,
+        uptime:      process.uptime(),
+        memoryMB:    Math.round(process.memoryUsage().rss / 1024 / 1024),
+        nodeVersion: process.version,
+        platform:    process.platform,
+        env:         process.env.NODE_ENV,
+        timestamp:   new Date(),
+      }
+    });
+  } catch (err) {
+    res.json({ success: true, health: { dbStatus: 'disconnected', error: err.message } });
+  }
+};
+
+// ─── NEW: GENERATE DEMO DATA ─────────────────────────────────────────────────
+const generateDemoData = async (req, res, next) => {
+  try {
+    const demoCtrl = require('./demoController');
+    return demoCtrl.generateDemo(req, res, next);
+  } catch (err) { next(err); }
+};
+
+// ─── NEW: CLEAR NOTIFICATIONS ────────────────────────────────────────────────
+const clearNotifications = async (req, res, next) => {
+  try {
+    // Placeholder — notificationRoutes not implemented yet; no-op
+    await log('NOTIFICATIONS_CLEARED', 'System', null, null, { timestamp: new Date() }, 'WARN');
+    res.json({ success: true, message: 'Notifications cleared.' });
+  } catch (err) { next(err); }
+};
+
+// ─── NEW: CREATE ANO ACCOUNT (GOD MODE ONLY) ─────────────────────────────────
+const createANOAccount = async (req, res, next) => {
+  try {
+    const { name, email, password, unitId } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'name, email, and password required.' });
+    }
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ success: false, message: 'Email already in use.' });
+    const hash = await bcrypt.hash(password, 12);
+    const ano = await User.create({ name, email, password: hash, role: 'ANO', unit: unitId, isActive: true });
+    await log('ANO_CREATED_GOD', 'User', ano._id, null, { name, email, role: 'ANO' }, 'CRITICAL');
+    res.status(201).json({ success: true, user: { id: ano._id, name, email, role: 'ANO' } });
+  } catch (err) { next(err); }
+};
+
+// ─── NEW: OVERRIDE USER ROLE ─────────────────────────────────────────────────
+const overrideUserRole = async (req, res, next) => {
+  try {
+    const { userId, newRole } = req.body;
+    if (!['ANO', 'SUO', 'cadet'].includes(newRole)) {
+      return res.status(400).json({ success: false, message: 'Invalid role.' });
+    }
+    const before = await User.findById(userId).select('role name email').lean();
+    const user   = await User.findByIdAndUpdate(userId, { role: newRole }, { new: true }).select('-password');
+    await log('ROLE_OVERRIDE_GOD', 'User', userId, before, { role: newRole }, 'CRITICAL');
+    res.json({ success: true, user });
+  } catch (err) { next(err); }
+};
+
+// ─── NEW: RESET USER PASSWORD (God Mode) ─────────────────────────────────────
+const resetUserPasswordGod = async (req, res, next) => {
+  try {
+    const { userId, newPassword } = req.body;
+    if (!userId || !newPassword) return res.status(400).json({ success: false, message: 'userId and newPassword required.' });
+    const hash = await bcrypt.hash(newPassword, 12);
+    await User.findByIdAndUpdate(userId, { password: hash });
+    await log('PASSWORD_RESET_GOD', 'User', userId, null, { reset: true }, 'CRITICAL');
+    res.json({ success: true, message: 'Password reset successfully.' });
+  } catch (err) { next(err); }
+};
+
+// ─── NEW: BULK DELETE ────────────────────────────────────────────────────────
+const bulkDeleteEntity = async (req, res, next) => {
+  try {
+    const { entity } = req.params;
+    const { confirm } = req.body;
+    const validConfirm = `DELETE-ALL-${entity.toUpperCase()}`;
+    if (confirm !== validConfirm) {
+      return res.status(400).json({ success: false, message: `Type "${validConfirm}" to confirm bulk deletion.` });
+    }
+    const models = { cadets: Cadet, notices: Notice, achievements: Achievement, gallery: GalleryItem, events: Event };
+    const Model = models[entity];
+    if (!Model) return res.status(400).json({ success: false, message: `Unknown entity: ${entity}` });
+    const result = await Model.deleteMany({});
+    await log(`BULK_DELETE_${entity.toUpperCase()}_GOD`, 'System', null, { count: result.deletedCount }, null, 'CRITICAL');
+    res.json({ success: true, message: `Deleted ${result.deletedCount} ${entity}.` });
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   // Stats
   getSystemStats,
@@ -381,4 +484,8 @@ module.exports = {
   promoteBatchAll, exportAllData, hardResetSystem,
   // Config
   getAllConfig, updateSectionConfig, clearCache,
+  // NEW
+  getSystemHealth, generateDemoData, clearNotifications,
+  createANOAccount, overrideUserRole, resetUserPasswordGod, bulkDeleteEntity,
 };
+

@@ -1,6 +1,5 @@
-// This middleware protects all /api/yt/* routes
-// This middleware protects all /api/yt/* routes
-// Only Yash Tiwari can access these — verified by secret key in header
+// This middleware protects all /api/yt/* routes.
+// Returns 404 (not 403) to make the route appear non-existent to anyone without the secret key.
 const requireYT = (req, res, next) => {
   const secret = req.headers['x-yt-secret'];
 

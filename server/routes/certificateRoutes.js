@@ -6,6 +6,7 @@ const upload = require('../middleware/upload');
 
 router.use(protect);
 
+router.get('/my', ctrl.getMyCertificates);
 router.get('/', ctrl.getCertificates);
 router.post('/', upload.single('file'), ctrl.createCertificate);
 router.put('/:id/verify', requireRole('ANO'), ctrl.verifyCertificate);

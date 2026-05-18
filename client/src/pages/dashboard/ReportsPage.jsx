@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 import api from '../../services/api';
+import useAuthStore from '../../store/authStore';
 import AnimatedPage from '../../components/layout/AnimatedPage';
 
 const COLORS = ['#2e3b2c','#c2b280','#d4af37','#4a5a48','#a89060'];
@@ -12,22 +14,27 @@ const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const handleExport = () => {
-    const rows = cadets.map(c => ({
-      'Service No': c.serviceNumber,
-      'Name': c.name,
-      'Rank': c.rank,
-      'Wing': c.wing,
-      'Year': c.yearOfStudy,
-      'Batch': c.batchYear,
-      'Gender': c.gender,
-      'Phone': c.phone,
-      'Email': c.email,
-      'Status': c.status,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Cadet Report');
-    XLSX.writeFile(wb, `prahar-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+    try {
+      const rows = cadets.map(c => ({
+        'Service No': c.serviceNumber,
+        'Name': c.name,
+        'Rank': c.rank,
+        'Wing': c.wing,
+        'Year': c.yearOfStudy,
+        'Batch': c.batchYear,
+        'Status': c.status,
+        'Phone': c.contactPhone || c.phone || '',
+        'Email': c.contactEmail || c.email || '',
+        'Honor Roll': c.isHonorRoll ? 'Yes' : 'No',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Cadets');
+      XLSX.writeFile(wb, `prahar-cadets-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Excel exported successfully!');
+    } catch {
+      toast.error('Export failed.');
+    }
   };
 
   useEffect(() => {

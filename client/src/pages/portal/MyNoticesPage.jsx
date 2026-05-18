@@ -35,7 +35,7 @@ const MyNoticesPage = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/dashboard/notices/${n._id}`)}
+              onClick={() => navigate(`/portal/notices/${n._id}`)}
               className="card p-5 cursor-pointer hover:border-olive/20 transition-all group"
             >
               <div className="flex items-start gap-4">

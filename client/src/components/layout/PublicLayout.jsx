@@ -1,19 +1,28 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import NCCBackground from '../ui/NCCBackground';
-
-const NAV_LINKS = [
-  { to: '/yearbook',     label: 'Yearbook' },
-  { to: '/gallery',      label: 'Gallery' },
-  { to: '/achievements', label: 'Achievements' },
-  { to: '/notices',      label: 'Notices' },
-];
+import api from '../../services/api';
 
 const PublicLayout = () => {
   const location = useLocation();
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    api.get('/settings/public').then(r => {
+      if (r.data?.success) setSettings(r.data.settings);
+    });
+  }, []);
+
+  const NAV_LINKS = [
+    { to: '/yearbook',     label: 'Yearbook', key: 'yearbook' },
+    { to: '/gallery',      label: 'Gallery', key: 'gallery' },
+    { to: '/achievements', label: 'Achievements', key: 'achievements' },
+    { to: '/notices',      label: 'Notices', key: 'notices' },
+  ].filter(link => settings?.visibility?.[link.key] !== false);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-smoke">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-transparent">
       <NCCBackground />
 
       {/* Subtle animated background particles */}
@@ -49,7 +58,7 @@ const PublicLayout = () => {
               <div className="font-display text-2xl text-khaki tracking-[0.15em] leading-none group-hover:text-gold transition-colors">
                 PRAHAR
               </div>
-              <div className="font-mono text-2xs text-olive-faint/40 tracking-widest leading-none">
+              <div className="font-mono text-2xs text-yellow-100/60 tracking-widest leading-none">
                 LCIT NCC
               </div>
             </div>
@@ -64,7 +73,7 @@ const PublicLayout = () => {
                   key={to}
                   to={to}
                   className={`relative px-4 py-2 font-heading text-sm font-medium uppercase tracking-wide transition-all duration-200
-                    ${isActive ? 'text-khaki' : 'text-olive-faint/70 hover:text-parchment'}`}
+                    ${isActive ? 'text-khaki' : 'text-yellow-100/80 hover:text-gold'}`}
                 >
                   {label}
                   {isActive && (
@@ -87,7 +96,7 @@ const PublicLayout = () => {
           {/* Mobile nav - simplified */}
           <div className="md:hidden flex items-center gap-2">
             {NAV_LINKS.map(({ to, label }) => (
-              <Link key={to} to={to} className="text-olive-faint/70 hover:text-parchment font-heading text-xs uppercase transition-colors">
+              <Link key={to} to={to} className="text-yellow-100/80 hover:text-gold font-heading text-xs uppercase transition-colors">
                 {label}
               </Link>
             ))}
@@ -106,7 +115,7 @@ const PublicLayout = () => {
           transition={{ duration: 0.35, ease: 'easeOut' }}
           className="flex-1 relative z-10"
         >
-          <Outlet />
+          <Outlet context={{ settings }} />
         </motion.main>
       </AnimatePresence>
 
@@ -114,11 +123,11 @@ const PublicLayout = () => {
       <footer className="relative z-10 bg-olive-dark border-t border-white/8">
         <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="font-display text-xl text-khaki tracking-widest">PRAHAR</div>
-          <div className="font-mono text-2xs text-olive-faint/35 text-center">
-            LCIT COLLEGE NCC UNIT — BILASPUR, CHHATTISGARH
+          <div className="font-mono text-2xs text-yellow-100/50 text-center uppercase">
+            {settings?.stats?.battalion || '17 CG BN NCC'} — {settings?.stats?.college || 'LCIT College Bilaspur'}
           </div>
-          <div className="font-mono text-2xs text-olive-faint/35">
-            &copy; 2024 · Developed by <span className="text-khaki/70">Yash Tiwari</span>
+          <div className="font-mono text-2xs text-yellow-100/50">
+            &copy; 2024 · Developed by <span className="text-khaki/90">Yash Tiwari</span>
           </div>
         </div>
       </footer>

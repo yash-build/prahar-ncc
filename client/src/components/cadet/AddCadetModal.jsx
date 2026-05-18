@@ -9,20 +9,27 @@ const AddCadetModal = ({ onClose, onSuccess }) => {
     yearOfStudy: 1, batchYear: '2024-25', phone: '', email: '', rank: 'CADET'
   });
   const [photoFile, setPhotoFile] = useState(null);
+  const [showCredentials, setShowCredentials] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const formData = new FormData();
-      Object.keys(form).forEach(key => formData.append(key, form[key]));
+      Object.keys(form).forEach(key => {
+        if (form[key] !== undefined && form[key] !== null && form[key] !== '') {
+          formData.append(key, form[key]);
+        }
+      });
       if (photoFile) formData.append('photo', photoFile);
 
-      const { data } = await api.post('/cadets', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const { data } = await api.post('/cadets', formData);
       if (data.success) {
-        toast.success('Cadet enrolled successfully');
-        onSuccess(data.cadet);
+        toast.success(`${form.name} enrolled successfully!`);
+        if (data.credentials) {
+          setShowCredentials(data.credentials);
+        } else {
+          onSuccess(data.cadet);
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to enroll cadet');
@@ -53,8 +60,8 @@ const AddCadetModal = ({ onClose, onSuccess }) => {
               </div>
               <div><label className="label">Year of Study</label><input required type="number" min="1" max="3" className="input" value={form.yearOfStudy} onChange={e=>setForm({...form, yearOfStudy: parseInt(e.target.value)})} /></div>
               <div><label className="label">Batch Year</label><input required className="input" value={form.batchYear} onChange={e=>setForm({...form, batchYear: e.target.value})} /></div>
-              <div><label className="label">Phone</label><input required className="input" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} /></div>
-              <div><label className="label">Email</label><input required type="email" className="input" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
+              <div><label className="label">Phone (Optional)</label><input className="input" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} /></div>
+              <div><label className="label">Email (Optional)</label><input type="email" className="input" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
               <div><label className="label">Rank</label>
                 <select className="input" value={form.rank} onChange={e=>setForm({...form, rank: e.target.value})}>
                   <option>CADET</option><option>LCPL</option><option>CPL</option><option>SGT</option><option>JUO</option><option>SUO</option>
@@ -71,6 +78,52 @@ const AddCadetModal = ({ onClose, onSuccess }) => {
           <button form="add-cadet-form" type="submit" className="btn-primary">Save Cadet</button>
         </div>
       </motion.div>
+
+      {/* Credentials display modal (shown to ANO only after cadet created) */}
+      {showCredentials && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#2c3128] border border-[#c8b98a] rounded-sm p-6 max-w-sm w-full">
+            <h3 className="font-mono text-sm text-[#c8b98a] tracking-widest mb-4">
+              CADET CREDENTIALS GENERATED
+            </h3>
+            <div className="bg-[#1a1d16] p-4 rounded-sm space-y-2 font-mono text-xs mb-4">
+              <div className="flex justify-between">
+                <span className="text-[#7a8a6e]">Login Email:</span>
+                <span className="text-[#c8b98a]">{showCredentials.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#7a8a6e]">Password:</span>
+                <span className="text-[#c8b98a]">{showCredentials.password}</span>
+              </div>
+              <div className="text-[#4a5240] text-[10px] mt-2 border-t border-[#4a5240] pt-2">
+                ⚠ Approve this account first, then share credentials with the cadet.
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Login: ${showCredentials.email}\nPassword: ${showCredentials.password}`
+                  );
+                  toast.success('Credentials copied!');
+                }}
+                className="flex-1 font-mono text-xs bg-[#4a5240] text-[#dde3d8] py-2 rounded-sm"
+              >
+                COPY CREDENTIALS
+              </button>
+              <button
+                onClick={() => {
+                  setShowCredentials(null);
+                  onSuccess();
+                }}
+                className="font-mono text-xs border border-[#4a5240] text-[#7a8a6e] px-4 py-2 rounded-sm"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

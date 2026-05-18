@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 const PORTAL_NAV = [
   { to: '/portal',              label: 'Overview',       icon: '⬛' },
   { to: '/portal/attendance',   label: 'My Attendance',  icon: '📋' },
+  { to: '/portal/leaves',       label: 'My Leaves',      icon: '📝' },
   { to: '/portal/notices',      label: 'Notices',        icon: '📢' },
   { to: '/portal/events',       label: 'Events',         icon: '🏕️' },
   { to: '/portal/achievements', label: 'Achievements',   icon: '🏆' },

@@ -19,6 +19,16 @@ const eventSchema = new mongoose.Schema({
     enum: ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED'],
     default: 'UPCOMING'
   },
+  // NEW: Event-based gallery fields
+  coverImage: {
+    url: { type: String },
+    publicId: { type: String }
+  },
+  gallery: [{
+    url: { type: String },
+    publicId: { type: String },
+    uploadedAt: { type: Date, default: Date.now }
+  }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

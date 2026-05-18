@@ -127,7 +127,7 @@ const CadetDetail = () => {
               </div>
               {isANO && (
                 <div className="flex gap-2">
-                  <button onClick={() => toast('Use Edit button in registry')} className="btn-ghost text-xs">✎ Edit</button>
+                  <button onClick={() => navigate(`/dashboard/cadets?edit=${cadet._id}`)} className="btn-ghost text-xs">✎ Edit</button>
                 </div>
               )}
             </div>

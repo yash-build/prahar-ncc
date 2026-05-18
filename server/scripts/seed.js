@@ -55,15 +55,15 @@ const seed = async () => {
 
     // ANO — plain password; User pre-save hook hashes it
     const ano = await User.create({
-      name: 'Lt Col R.K. Sharma', email: 'ano@lcit.edu.in',
-      password: 'ano@lcit2024',
+      name: 'Lt. R.K. Sharma', email: 'ano@lcit.edu.in',
+      password: 'prahar@2026',
       role: 'ANO', unit: unit._id, isActive: true
     });
 
     // SUO 1
     await User.create({
       name: 'Yash Tiwari', email: 'suo@lcit.edu.in',
-      password: 'suo@lcit2024',
+      password: 'prahar@2026',
       role: 'SUO', unit: unit._id, isActive: true,
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
     });
@@ -71,7 +71,7 @@ const seed = async () => {
     // SUO 2
     await User.create({
       name: 'Priya Sharma', email: 'suo2@lcit.edu.in',
-      password: 'suo2@lcit2024',
+      password: 'prahar@2026',
       role: 'SUO', unit: unit._id, isActive: true,
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
     });
@@ -111,13 +111,13 @@ const seed = async () => {
       ]);
     }
 
-    console.log('✅ FULL SEED COMPLETE!');
+    console.log('✅ SEED COMPLETE!');
     console.log('─────────────────────────────────');
-    console.log('ANO  Login: ano@lcit.edu.in / ano@lcit2024');
-    console.log('SUO  Login: suo@lcit.edu.in / suo@lcit2024');
-    console.log('SUO2 Login: suo2@lcit.edu.in / suo2@lcit2024');
-    console.log(`God Mode:   ${process.env.YT_GOD_SECRET}`);
-    console.log(`Cadets seeded: ${cadets.length}`);
+    console.log('ANO  Login: ano@lcit.edu.in    / prahar@2026');
+    console.log('SUO  Login: suo@lcit.edu.in    / prahar@2026');
+    console.log('SUO2 Login: suo2@lcit.edu.in   / prahar@2026');
+    console.log(`God Mode:   /yt-command →`, process.env.YT_GOD_SECRET || 'PRAHAR_YT_2024_HIDDEN');
+    console.log(`Cadets:     ${cadets.length} created`);
     process.exit(0);
   } catch (err) {
     console.error('❌ Seed failed:', err.message);

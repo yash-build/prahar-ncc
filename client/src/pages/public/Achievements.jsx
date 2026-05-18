@@ -18,10 +18,10 @@ const Achievements = () => {
   return (
     <div className="max-w-5xl mx-auto py-16 px-6 lg:px-8">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-14">
-        <div className="font-mono text-2xs text-olive-muted tracking-military mb-3">INSTITUTIONAL RECORD</div>
-        <h1 className="font-display text-6xl text-olive-dark uppercase tracking-wide mb-3">Wall of Honor</h1>
+        <div className="font-mono text-2xs text-yellow-200 tracking-military mb-3">INSTITUTIONAL RECORD</div>
+        <h1 className="font-display text-6xl text-yellow-400 uppercase tracking-wide mb-3">Wall of Honor</h1>
         <div className="gold-divider mb-4" />
-        <p className="text-olive-muted max-w-xl font-sans">Exceptional accomplishments of our cadets at national, state, and institutional levels.</p>
+        <p className="text-yellow-200 max-w-xl font-sans">Exceptional accomplishments of our cadets at national, state, and institutional levels.</p>
       </motion.div>
 
       <div className="space-y-5">
@@ -33,7 +33,7 @@ const Achievements = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.15 }}
             whileHover={{ x: 4 }}
-            className="card p-0 overflow-hidden group cursor-pointer"
+            className="card-dark p-0 overflow-hidden group cursor-pointer"
           >
             <div className="flex flex-col md:flex-row">
               {/* Left accent */}
@@ -47,10 +47,10 @@ const Achievements = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className={LEVEL_BADGES[item.level]}>{item.level}</span>
-                    <span className="font-mono text-2xs text-olive-muted">{item.date}</span>
+                    <span className="font-mono text-2xs text-yellow-200">{item.date}</span>
                   </div>
-                  <h3 className="font-heading font-bold text-olive-dark text-xl mb-1">{item.title}</h3>
-                  <p className="text-olive-muted text-sm mb-2">{item.desc}</p>
+                  <h3 className="font-heading font-bold text-yellow-400 text-xl mb-1">{item.title}</h3>
+                  <p className="text-yellow-200 text-sm mb-2">{item.desc}</p>
                   <div className="font-mono text-2xs text-khaki-dark">Awarded to: {item.cadet}</div>
                 </div>
               </div>

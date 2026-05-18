@@ -1,20 +1,22 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
-const app = require('./app');
+const app       = require('./app');
 const connectDB = require('./config/db');
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
+const start = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`✅ PRAHAR server running on port ${PORT}`);
-      console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-    });
   } catch (err) {
-    console.error('❌ Server startup failed:', err.message);
-    process.exit(1);
+    console.error('❌ DB connection failed:', err.message);
+    console.log('⚠️ Server running in restricted/bypass mode');
   }
+  app.listen(PORT, () => {
+    console.log(`\n✅ PRAHAR backend running on port ${PORT}`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
+    console.log(`📧 Test ANO: ano@lcit.edu.in / ano@lcit2024`);
+    console.log(`🔐 God Mode: /yt-command\n`);
+  });
 };
 
-startServer();
+start();

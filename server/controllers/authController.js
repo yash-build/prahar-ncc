@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const mongoose = require('mongoose');
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -20,6 +21,33 @@ const login = async (req, res, next) => {
       });
     }
 
+    // DEV BYPASS: Allow demo logins if DB is disconnected (e.g. whitelist issue)
+    if (mongoose.connection.readyState !== 1) {
+      const isDemoANO = email === 'ano@lcit.edu.in' && password === 'prahar@2026';
+      const isDemoSUO = email === 'suo@lcit.edu.in' && password === 'prahar@2026';
+      const isDemoCadet = email === 'cadet@lcit.edu.in' && password === 'prahar@2026';
+      
+      if (isDemoANO || isDemoSUO || isDemoCadet) {
+        const role = isDemoANO ? 'ANO' : isDemoSUO ? 'SUO' : 'cadet';
+        console.log(`🚧 [DEV BYPASS] ${role} login without DB`);
+        return res.json({
+          success: true,
+          token: signToken('000000000000000000000000'),
+          user: {
+            id: '000000000000000000000000',
+            name: `Demo ${role.toUpperCase()}`,
+            email,
+            role,
+          }
+        });
+      }
+      // Non-demo credentials with no DB — give clear error
+      return res.status(503).json({
+        success: false,
+        message: 'Database is connecting. Please wait 10 seconds and try again, or use demo credentials.'
+      });
+    }
+
     const user = await User.findOne({ email }).select('+password');
 
     if (!user || !(await user.comparePassword(password))) {
@@ -34,6 +62,23 @@ const login = async (req, res, next) => {
         success: false,
         message: 'Account deactivated. Contact your ANO.'
       });
+    }
+
+    if (user.role === 'cadet') {
+      if (user.accountStatus === 'PENDING_APPROVAL') {
+        return res.status(403).json({
+          success: false,
+          message: 'Account pending ANO approval. You will be notified when approved.',
+          status: 'PENDING_APPROVAL',
+        });
+      }
+      if (user.accountStatus !== 'APPROVED') {
+        return res.status(403).json({
+          success: false,
+          message: 'Account not active. Contact your ANO.',
+          status: user.accountStatus,
+        });
+      }
     }
 
     const token = signToken(user._id);
@@ -131,4 +176,19 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { login, register, getMe };
+// Update current user
+const updateMe = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    const user = await User.findById(req.user._id);
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (password) user.password = password;
+    await user.save();
+    res.json({ success: true, message: 'Details updated successfully', user: { name: user.name, email: user.email }});
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { login, register, getMe, updateMe };

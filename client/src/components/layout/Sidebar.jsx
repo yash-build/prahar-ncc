@@ -11,6 +11,7 @@ const NAV_GROUPS = [
       { name: 'Dashboard',      path: '/dashboard',              icon: '⬛', roles: ['ANO','SUO'] },
       { name: 'Cadet Registry', path: '/dashboard/cadets',       icon: '👤', roles: ['ANO','SUO'] },
       { name: 'Attendance',     path: '/dashboard/attendance',   icon: '📋', roles: ['ANO','SUO'] },
+      { name: 'Leave Requests', path: '/dashboard/leaves',       icon: '📝', roles: ['ANO','SUO'] },
       { name: 'Events & Camps', path: '/dashboard/events',       icon: '🏕️', roles: ['ANO','SUO'] },
     ]
   },
@@ -18,8 +19,7 @@ const NAV_GROUPS = [
     group: 'Publications',
     items: [
       { name: 'Notice Board',   path: '/dashboard/notices',      icon: '📢', roles: ['ANO','SUO'] },
-      { name: 'Honor Roll',     path: '/dashboard/honor-roll',   icon: '🎖️', roles: ['ANO','SUO'] },
-      { name: 'Gallery',        path: '/dashboard/gallery',      icon: '🖼️', roles: ['ANO','SUO'] },
+      { name: 'Honor Roll',     path: '/dashboard/honor-roll',   icon: '🎖️', roles: ['ANO'] },
       { name: 'Achievements',   path: '/dashboard/achievements', icon: '🏆', roles: ['ANO','SUO'] },
     ]
   },

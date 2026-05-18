@@ -7,12 +7,37 @@ const NoticeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [notice, setNotice] = useState(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    api.get(`/notices/${id}`).then(r => setNotice(r.data.notice)).catch(e => console.error(e));
+    api.get(`/notices/${id}`)
+      .then(r => { if (r.data?.notice) setNotice(r.data.notice); else setError(true); })
+      .catch(() => setError(true));
   }, [id]);
 
-  if (!notice) return <div className="p-10 text-center">Loading...</div>;
+  if (error) return (
+    <AnimatedPage className="page-shell">
+      <button onClick={() => navigate(-1)} className="btn-ghost mb-4 w-max">← Back</button>
+      <div className="card p-10 text-center">
+        <div className="empty-state-icon">📢</div>
+        <div className="empty-state-title">Notice not found</div>
+        <div className="empty-state-sub">This notice may have expired or been removed.</div>
+      </div>
+    </AnimatedPage>
+  );
+
+  if (!notice) return (
+    <AnimatedPage className="page-shell">
+      <div className="skeleton h-6 w-24 mb-6" />
+      <div className="card p-8">
+        <div className="skeleton h-4 w-32 mb-4" />
+        <div className="skeleton h-8 w-3/4 mb-6" />
+        <div className="skeleton h-48 w-full" />
+      </div>
+    </AnimatedPage>
+  );
+
+  const isPdf = notice.attachment?.resourceType === 'raw';
 
   return (
     <AnimatedPage className="page-shell">
@@ -23,17 +48,26 @@ const NoticeDetail = () => {
           <span className="badge badge-olive">{notice.targetAudience}</span>
         </div>
         <h1 className="section-title mb-4">{notice.title}</h1>
-        {notice.imageUrl && <img src={notice.imageUrl} alt="Notice" className="w-full max-h-96 object-cover rounded-sm mb-6 border border-olive-dark/10" />}
+        
+        {notice.attachment?.url && !isPdf && (
+          <img src={notice.attachment.url} alt="Notice Attachment" className="w-full max-h-96 object-contain bg-stone-100 rounded-sm mb-6 border border-olive-dark/10" />
+        )}
+        
         <div className="whitespace-pre-wrap text-olive-dark leading-relaxed mb-6">{notice.body}</div>
         
-        {(notice.pdfUrl || notice.externalLink) && (
-          <div className="flex gap-4 mb-6">
-            {notice.pdfUrl && <a href={notice.pdfUrl} target="_blank" rel="noreferrer" className="btn-primary">View PDF Document</a>}
-            {notice.externalLink && <a href={notice.externalLink} target="_blank" rel="noreferrer" className="btn-ghost">External Link</a>}
+        {notice.attachment?.url && isPdf && (
+          <div className="mb-6 h-[600px] w-full border border-stone-200">
+            <iframe src={notice.attachment.url} className="w-full h-full" title="Notice PDF Attachment" />
           </div>
         )}
-        <div className="pt-4 border-t border-olive-dark/10 font-mono text-2xs text-olive-muted">
-          Published: {new Date(notice.publishedAt || notice.createdAt).toLocaleString()}
+        
+        <div className="pt-4 border-t border-olive-dark/10 flex flex-wrap justify-between items-center text-xs">
+          <div className="font-mono text-olive-muted">
+            Published: {new Date(notice.publishedAt || notice.createdAt).toLocaleString()}
+          </div>
+          <div className="font-mono text-khaki-dark font-semibold">
+            Status: {notice.status}
+          </div>
         </div>
       </div>
     </AnimatedPage>

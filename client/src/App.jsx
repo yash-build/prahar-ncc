@@ -10,7 +10,6 @@ import Yearbook      from './pages/public/Yearbook';
 import Gallery       from './pages/public/Gallery';
 import Achievements  from './pages/public/Achievements';
 import PublicNotices from './pages/public/PublicNotices';
-import GalleryDetailPage from './pages/public/GalleryDetailPage';
 import EventDetailPage   from './pages/public/EventDetailPage';
 import AchievementDetailPage from './pages/public/AchievementDetailPage';
 
@@ -26,10 +25,10 @@ import AttendancePage     from './pages/dashboard/AttendancePage';
 import NoticesPage        from './pages/dashboard/NoticesPage';
 import NoticeDetail       from './pages/dashboard/NoticeDetail';
 import HonorRoll          from './pages/dashboard/HonorRoll';
-import GalleryManage      from './pages/dashboard/GalleryManage';
 import AchievementsManage from './pages/dashboard/AchievementsManage';
 import EventsPage         from './pages/dashboard/EventsPage';
 import ReportsPage        from './pages/dashboard/ReportsPage';
+import LeavesManage       from './pages/dashboard/LeavesManage';
 import BatchPage          from './pages/dashboard/BatchPage';
 import SettingsPage       from './pages/dashboard/SettingsPage';
 import AuditLog           from './pages/dashboard/AuditLog';
@@ -39,10 +38,10 @@ import PortalHome       from './pages/portal/PortalHome';
 import MyAttendancePage  from './pages/portal/MyAttendancePage';
 import MyNoticesPage     from './pages/portal/MyNoticesPage';
 import MyEventsPage      from './pages/portal/MyEventsPage';
+import MyLeavesPage      from './pages/portal/MyLeavesPage';
 import MyAchievementsPage from './pages/portal/MyAchievementsPage';
 import MyProfilePage     from './pages/portal/MyProfilePage';
-// Remaining stubs that still need real implementations
-import { MyCertificates } from './pages/portal/stubs';
+import MyCertificates    from './pages/portal/MyCertificates';
 
 // God Mode
 import YTGodMode from './pages/yt/YTGodMode';
@@ -164,7 +163,7 @@ const AppContent = () => {
             <Route path="/yearbook"     element={<Yearbook />} />
             <Route path="/cadets/:id"   element={<CadetDetail />} />
             <Route path="/gallery"      element={<Gallery />} />
-            <Route path="/gallery/:id"  element={<GalleryDetailPage />} />
+            <Route path="/gallery/:id"  element={<Navigate to="/gallery" replace />} />
             <Route path="/achievements" element={<Achievements />} />
             <Route path="/achievements/:id" element={<AchievementDetailPage />} />
             <Route path="/events/:id"   element={<EventDetailPage />} />
@@ -188,9 +187,10 @@ const AppContent = () => {
             <Route path="/dashboard/notices"      element={<NoticesPage />} />
             <Route path="/dashboard/notices/:id"  element={<NoticeDetail />} />
             <Route path="/dashboard/honor-roll"   element={<HonorRoll />} />
-            <Route path="/dashboard/gallery"      element={<GalleryManage />} />
+            <Route path="/dashboard/gallery"      element={<Navigate to="/dashboard/events" replace />} />
             <Route path="/dashboard/achievements" element={<AchievementsManage />} />
             <Route path="/dashboard/events"       element={<EventsPage />} />
+            <Route path="/dashboard/leaves"       element={<LeavesManage />} />
             <Route path="/dashboard/reports"      element={<ReportsPage />} />
             <Route path="/dashboard/batch"        element={
               <ProtectedRoute roles={['ANO']}><BatchPage /></ProtectedRoute>
@@ -212,15 +212,16 @@ const AppContent = () => {
             <Route path="/portal"               element={<PortalHome />} />
             <Route path="/portal/attendance"    element={<MyAttendancePage />} />
             <Route path="/portal/notices"       element={<MyNoticesPage />} />
+            <Route path="/portal/notices/:id"   element={<NoticeDetail />} />
             <Route path="/portal/events"        element={<MyEventsPage />} />
+            <Route path="/portal/leaves"        element={<MyLeavesPage />} />
             <Route path="/portal/achievements"  element={<MyAchievementsPage />} />
             <Route path="/portal/certificates"  element={<MyCertificates />} />
             <Route path="/portal/profile"       element={<MyProfilePage />} />
           </Route>
 
-          {/* ── GOD MODE ── hidden, not linked from anywhere ── */}
+          {/* ── GOD MODE ── /yt-command only — never linked, never obvious ── */}
           <Route path="/yt-command" element={<YTGodMode />} />
-          <Route path="/god-mode" element={<YTGodMode />} />
 
           {/* ── 404 ── */}
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -20,6 +20,28 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   expiresAt: { type: Date }, // SUO accounts expire after 12 months
   profilePhoto: { type: String },
+  accountStatus: {
+    type:    String,
+    enum:    ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'DEACTIVATED'],
+    default: function() {
+      // ANO and SUO are approved by default (created by system/seed)
+      // Cadets start as PENDING_APPROVAL
+      return this.role === 'cadet' ? 'PENDING_APPROVAL' : 'APPROVED';
+    }
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref:  'User',
+    default: null,
+  },
+  approvedAt: {
+    type:    Date,
+    default: null,
+  },
+  rejectionReason: {
+    type:    String,
+    default: null,
+  },
   createdAt: { type: Date, default: Date.now }
 });
 

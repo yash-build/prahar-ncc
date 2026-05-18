@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -27,6 +27,7 @@ const CadetRegistry = () => {
   const { user }                  = useAuthStore();
   const isANO                     = user?.role === 'ANO';
   const navigate                  = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const fetchCadets = async () => {
     try {
@@ -43,6 +44,17 @@ const CadetRegistry = () => {
     const t = setTimeout(fetchCadets, 450);
     return () => clearTimeout(t);
   }, [search, filterWing]);
+
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (editId && cadets.length > 0) {
+      const c = cadets.find(x => x._id === editId);
+      if (c) setEditingCadet(c);
+      // Remove it from URL so refreshing or closing doesn't auto-open
+      searchParams.delete('edit');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [cadets, searchParams, setSearchParams]);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Delete cadet "${name}"? This cannot be undone.`)) return;

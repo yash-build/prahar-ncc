@@ -26,6 +26,30 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (user.role === 'cadet' && user.accountStatus === 'PENDING_APPROVAL') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is pending ANO approval. Please wait for confirmation.',
+        accountStatus: 'PENDING_APPROVAL',
+      });
+    }
+
+    if (user.role === 'cadet' && user.accountStatus === 'REJECTED') {
+      return res.status(403).json({
+        success: false,
+        message: `Your account request was rejected. Reason: ${user.rejectionReason || 'Contact your ANO.'}`,
+        accountStatus: 'REJECTED',
+      });
+    }
+
+    if (user.role === 'cadet' && user.accountStatus === 'DEACTIVATED') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated. Contact your ANO.',
+        accountStatus: 'DEACTIVATED',
+      });
+    }
+
     // Check SUO expiry
     if (user.role === 'SUO' && user.expiresAt && new Date() > user.expiresAt) {
       return res.status(401).json({
