@@ -9,6 +9,7 @@ router.get('/public', ctrl.getPublicCadets);
 router.use(protect);
 
 router.get('/my', requireRole('cadet', 'SUO', 'ANO'), ctrl.getMyProfile);
+router.put('/my', requireRole('cadet', 'SUO', 'ANO'), upload.single('photo'), ctrl.updateMyProfile);
 router.get('/', requireRole('ANO', 'SUO'), ctrl.getCadets);
 router.post('/', requireRole('ANO', 'SUO'), upload.single('photo'), ctrl.createCadet);
 router.post('/batch', requireRole('ANO'), ctrl.createCadetsBatch);

@@ -250,4 +250,29 @@ const getMyProfile = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getCadets, getCadet, createCadet, createCadetsBatch, updateCadet, deleteCadet, getPublicCadets, getMyProfile };
+// PUT /api/cadets/my — Self-update for cadets (safe fields only)
+const updateMyProfile = async (req, res, next) => {
+  try {
+    const cadet = await Cadet.findOne({ authId: req.user._id });
+    if (!cadet) return res.status(404).json({ success: false, message: 'Cadet profile not found.' });
+
+    // Only allow safe fields — cadets cannot change rank, name, service number, wing, etc.
+    const allowedFields = ['contactPhone', 'contactEmail', 'yearbookMessage'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+
+    // Handle photo upload
+    if (req.file) {
+      const result = await uploadBuffer(req.file.buffer, 'prahar/cadets');
+      updateData.photoUrl = result.secure_url;
+      updateData.photoThumbUrl = result.secure_url.replace('/upload/', '/upload/w_100,h_100,c_fill/');
+    }
+
+    const updated = await Cadet.findByIdAndUpdate(cadet._id, updateData, { new: true, runValidators: true });
+    res.json({ success: true, cadet: updated });
+  } catch (err) { next(err); }
+};
+
+module.exports = { getCadets, getCadet, createCadet, createCadetsBatch, updateCadet, deleteCadet, getPublicCadets, getMyProfile, updateMyProfile };
