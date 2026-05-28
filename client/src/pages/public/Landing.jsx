@@ -103,29 +103,58 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ═══ 2. ANO SECTION ══════════════════════════════════ */}
-      <section className="bg-transparent py-20">
+      {/* ═══ 2. ANO SECTION — FULL COMMANDING PROFILE ═══════ */}
+      <section className="bg-transparent py-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div {...inView} transition={{ duration: 0.5 }} className="text-center mb-14">
+          <motion.div {...inView} transition={{ duration: 0.5 }} className="text-center mb-16">
             <div className="font-mono text-2xs text-khaki-dark tracking-military mb-3">COMMANDING OFFICER</div>
-            <h2 className="font-display text-4xl text-yellow-400 uppercase tracking-wide">Associate NCC Officer</h2>
-            <div className="gold-divider mx-auto mt-3" />
+            <h2 className="font-display text-5xl text-yellow-400 uppercase tracking-wide">Associate NCC Officer</h2>
+            <div className="gold-divider mx-auto mt-4" />
           </motion.div>
-          <motion.div {...inView} transition={{ duration: 0.5, delay: 0.1 }} className="max-w-2xl mx-auto">
-            <div className="card-dark p-8 flex flex-col md:flex-row gap-8 items-center text-center md:text-left">
-              <div className="w-32 h-32 rounded-sm bg-gradient-to-br from-olive/20 to-khaki/10 border-2 border-khaki/30 flex items-center justify-center shrink-0 overflow-hidden">
-                {ano?.photoUrl
-                  ? <img src={ano.photoUrl} alt={ano.name} className="w-full h-full object-cover" />
-                  : <span className="font-display text-5xl text-yellow-500/25">🎖</span>
-                }
-              </div>
-              <div>
-                <div className="font-mono text-2xs text-khaki-dark tracking-military mb-1">LT. / CAPT.</div>
-                <div className="font-display text-3xl text-yellow-400 mb-1">{ano?.name || 'PRAHAR ANO'}</div>
-                <div className="font-mono text-sm text-khaki-dark mb-4">{ano?.rank || 'Associate NCC Officer'} · {settings?.stats?.battalion || '17 CG BN NCC'}</div>
-                <p className="font-sans text-sm text-yellow-400 italic leading-relaxed border-l-2 border-khaki/60 pl-4">
-                  {ano?.yearbookMessage || '"Discipline is the soul of an army. It makes small numbers formidable; procures success to the weak, and esteem to all."'}
-                </p>
+          <motion.div {...inView} transition={{ duration: 0.6, delay: 0.1 }} className="max-w-4xl mx-auto">
+            <div className="card-dark p-0 overflow-hidden" style={{ boxShadow: '0 0 60px rgba(212,175,55,0.08), 0 4px 30px rgba(0,0,0,0.3)' }}>
+              <div className="flex flex-col md:flex-row">
+                {/* ── Big Photo Panel ── */}
+                <div className="relative w-full md:w-72 lg:w-80 shrink-0">
+                  <div className="aspect-[3/4] md:aspect-auto md:h-full bg-gradient-to-br from-olive/30 to-khaki/15 flex items-center justify-center overflow-hidden relative">
+                    {(settings?.anoProfile?.photo || ano?.photoUrl)
+                      ? <img src={settings?.anoProfile?.photo || ano?.photoUrl} alt={settings?.anoProfile?.name || ano?.name || 'ANO'}
+                             className="w-full h-full object-cover" />
+                      : <div className="flex flex-col items-center gap-3">
+                          <span className="font-display text-8xl text-yellow-500/15">🎖</span>
+                          <span className="font-mono text-2xs text-khaki-dark/40 tracking-widest">PHOTO</span>
+                        </div>
+                    }
+                    {/* Gold accent bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-gold to-transparent" />
+                    {/* Rank badge overlay */}
+                    <div className="absolute top-4 left-4">
+                      <div className="bg-olive-dark/80 backdrop-blur-sm border border-gold/40 px-3 py-1.5 rounded-sm">
+                        <span className="font-mono text-2xs text-gold tracking-widest font-bold">ANO</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* ── Info Panel ── */}
+                <div className="flex-1 p-8 lg:p-10 flex flex-col justify-center">
+                  <div className="font-mono text-2xs text-khaki-dark tracking-military mb-2">
+                    {settings?.anoProfile?.title || 'LT. / CAPT.'}
+                  </div>
+                  <div className="font-display text-4xl lg:text-5xl text-yellow-400 mb-2 leading-tight">
+                    {settings?.anoProfile?.name || ano?.name || 'PRAHAR ANO'}
+                  </div>
+                  <div className="font-mono text-sm text-khaki-dark mb-6">
+                    {settings?.anoProfile?.designation || 'Associate NCC Officer'} · {settings?.stats?.battalion || '17 CG BN NCC'}
+                  </div>
+                  <div className="gold-divider mb-6 w-16" />
+                  <p className="font-sans text-base text-yellow-100/80 italic leading-relaxed border-l-2 border-gold/50 pl-5 max-w-lg">
+                    {settings?.anoProfile?.quote || ano?.yearbookMessage || '"Discipline is the soul of an army. It makes small numbers formidable; procures success to the weak, and esteem to all."'}
+                  </p>
+                  <div className="mt-8 flex items-center gap-3">
+                    <div className="w-8 h-px bg-gold/40" />
+                    <span className="font-mono text-2xs text-khaki-dark tracking-widest">{settings?.stats?.college?.toUpperCase() || 'LCIT COLLEGE, BILASPUR'}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -192,10 +221,10 @@ const Landing = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
               {rankHolders.map((c, i) => (
                 <motion.div key={c._id} {...inView} transition={{ delay: i * 0.06 }} whileHover={{ y: -4 }} className="card-dark overflow-hidden group">
-                  <div className="h-32 bg-gradient-to-br from-olive/8 to-khaki/8 flex items-center justify-center relative overflow-hidden">
+                  <div className="h-44 bg-gradient-to-br from-olive/8 to-khaki/8 flex items-center justify-center relative overflow-hidden">
                     {c.photoUrl
                       ? <img src={c.photoUrl} alt={c.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      : <span className="font-display text-4xl text-yellow-500/20">{c.name[0]}</span>
+                      : <span className="font-display text-5xl text-yellow-500/20">{c.name[0]}</span>
                     }
                     <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-gold/90 rounded-full flex items-center justify-center shadow">
                       <span className="text-[10px] text-yellow-400">✦</span>

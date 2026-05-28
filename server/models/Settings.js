@@ -15,6 +15,14 @@ const settingsSchema = new mongoose.Schema({
     achievements: { type: Boolean, default: true },
     yearbook: { type: Boolean, default: true },
     notices: { type: Boolean, default: true }
+  },
+  // ANO Profile (displayed on public landing page)
+  anoProfile: {
+    photo: { type: String, default: '' },
+    name: { type: String, default: '' },
+    title: { type: String, default: 'LT. / CAPT.' },
+    designation: { type: String, default: 'Associate NCC Officer' },
+    quote: { type: String, default: '"Discipline is the soul of an army. It makes small numbers formidable; procures success to the weak, and esteem to all."' }
   }
 }, { timestamps: true });
 

@@ -99,6 +99,7 @@ const HonorRoll = () => {
   const [cadets,  setCadets]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [uploadingFor, setUploadingFor] = useState(null); // cadet ID being uploaded for
   const { user } = useAuthStore();
   const isANO = user?.role === 'ANO';
 
@@ -132,6 +133,26 @@ const HonorRoll = () => {
     }
   };
 
+  const handlePhotoUpload = async (cadetId, file) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      return toast.error('Only JPEG, PNG, WebP allowed');
+    }
+    setUploadingFor(cadetId);
+    try {
+      const fd = new FormData();
+      fd.append('photo', file);
+      const { data } = await api.put(`/cadets/${cadetId}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data.success) {
+        toast.success('Photo updated!');
+        fetchCadets();
+      }
+    } catch { toast.error('Failed to upload photo'); }
+    finally { setUploadingFor(null); }
+  };
+
   const getRank = (c) => {
     if (c.isSUOPosition) return { label: 'SUO', color: '#d4af37' };
     if (c.isJUOPosition) return { label: 'JUO', color: '#c2b280' };
@@ -144,7 +165,7 @@ const HonorRoll = () => {
         <div>
           <div className="font-mono text-2xs text-olive-muted tracking-military mb-1">RECOGNITION</div>
           <h1 className="section-title">Honor Roll</h1>
-          <p className="font-mono text-xs text-olive-muted mt-1">Distinguished cadets and command hierarchy.</p>
+          <p className="font-mono text-xs text-olive-muted mt-1">Distinguished cadets and command hierarchy. {isANO && <span className="text-khaki-dark">Click 📷 on any card to upload a photo.</span>}</p>
         </div>
         {isANO && (
           <button onClick={() => setShowModal(true)} className="btn-primary">
@@ -169,14 +190,16 @@ const HonorRoll = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {cadets.map((c, i) => {
             const r = getRank(c);
+            const isUploading = uploadingFor === c._id;
             return (
               <motion.div key={c._id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.06 }} whileHover={{ y: -4 }} className="card overflow-hidden group">
-                <div className="h-36 bg-gradient-to-br from-olive/10 to-khaki/10 relative flex items-center justify-center">
+                <div className="h-44 bg-gradient-to-br from-olive/10 to-khaki/10 relative flex items-center justify-center">
                   {c.photoUrl
                     ? <img src={c.photoUrl} alt={c.name} className="w-full h-full object-cover" />
                     : <span className="font-display text-5xl text-olive/20">{c.name[0]}</span>
                   }
+                  {/* Rank badge */}
                   <div className="absolute top-2 right-2">
                     <span className="font-mono text-2xs font-bold px-2 py-0.5 rounded-sm"
                       style={{ background: r.color + '25', color: r.color, border: `1px solid ${r.color}40` }}>
@@ -187,6 +210,19 @@ const HonorRoll = () => {
                     <div className="absolute top-2 left-2 w-6 h-6 bg-gold/90 rounded-full flex items-center justify-center shadow">
                       <span className="text-xs text-olive-dark">✦</span>
                     </div>
+                  )}
+                  {/* Photo upload overlay — visible on hover for ANO */}
+                  {isANO && (
+                    <label className={`absolute inset-0 flex items-center justify-center cursor-pointer transition-all duration-200
+                      ${isUploading ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0 group-hover:bg-black/40 group-hover:opacity-100'}`}>
+                      {isUploading ? (
+                        <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <span className="bg-white/90 backdrop-blur-sm rounded-full w-10 h-10 flex items-center justify-center shadow-lg text-lg">📷</span>
+                      )}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                        onChange={(e) => handlePhotoUpload(c._id, e.target.files?.[0])} disabled={isUploading} />
+                    </label>
                   )}
                 </div>
                 <div className="p-4">
