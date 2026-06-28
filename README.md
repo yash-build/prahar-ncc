@@ -68,25 +68,7 @@ cd server && npm install
 cd ../client && npm install
 ```
 
-### 2. Configure environment
 
-**server/.env**
-```env
-PORT=5000
-MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/shastra
-JWT_SECRET=your_super_secret_key_here
-JWT_EXPIRE=7d
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-CLIENT_URL=http://localhost:5173
-NODE_ENV=development
-```
-
-**client/.env**
-```env
-VITE_API_URL=http://localhost:5000/api
-```
 
 ### 3. Seed database
 
